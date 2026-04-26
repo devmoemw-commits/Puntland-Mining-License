@@ -132,14 +132,11 @@ export const updateLicenseStatusSchema = z.object({
     .max(1000, "Comment cannot exceed 1000 characters")
     .optional(),
 }).superRefine((value, ctx) => {
-  if ((value.status === "REVIEW" || value.status === "REJECTED") && !value.comment) {
+  if (value.status === "REJECTED" && !value.comment) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ["comment"],
-      message:
-        value.status === "REVIEW"
-          ? "Comment is required when moving a license to review"
-          : "Comment is required when rejecting a license",
+      message: "Comment is required when rejecting a license",
     })
   }
 })

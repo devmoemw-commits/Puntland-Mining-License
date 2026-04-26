@@ -182,13 +182,8 @@ export default function LicenseDetails({
     nextStatus: "REVIEW" | "APPROVED" | "REJECTED",
     label: string,
   ) => {
-    const requiresReviewComment = workflow?.nextStep?.toStatus?.toUpperCase() === "REVIEW";
-    if (
-      requiresReviewComment &&
-      (nextStatus === "REVIEW" || nextStatus === "REJECTED") &&
-      !workflowComment.trim()
-    ) {
-      toast.error("Please add a review comment before submitting.");
+    if (nextStatus === "REJECTED" && !workflowComment.trim()) {
+      toast.error("Please add a comment before rejecting review.");
       return;
     }
 
@@ -1010,7 +1005,7 @@ export default function LicenseDetails({
                           {requiresReviewComment ? (
                             <div className="w-full">
                               <Textarea
-                                placeholder="Add review comment..."
+                                placeholder="Optional review comment..."
                                 value={workflowComment}
                                 onChange={(e) => setWorkflowComment(e.target.value)}
                                 className="min-h-20 text-sm"
