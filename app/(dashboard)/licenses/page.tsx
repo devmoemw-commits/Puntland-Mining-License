@@ -7,7 +7,7 @@ import { DataTable } from "./_components/data-table"
 import { columns, License } from "./column"
 import { db } from "@/database/drizzle"
 import { districts, licenses } from "@/database/schema"
-import { eq } from "drizzle-orm"
+import { desc, eq } from "drizzle-orm"
 import { Permissions } from "@/lib/permissions"
 import { requireActionPermission } from "@/lib/permissions-server"
 
@@ -27,6 +27,7 @@ async function getLicenses(): Promise<License[]> {
       })
       .from(licenses)
       .leftJoin(districts, eq(licenses.district_id, districts.id))
+      .orderBy(desc(licenses.created_at))
 
     return rows.map((item) => {
       const row = item.license
