@@ -7,9 +7,10 @@ import {
   licenseWorkflowInstances,
   licenseWorkflowTransitions,
   licenses,
+  roles,
   users,
 } from "@/database/schema";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import type { License, Location } from "@/types";
 import LicenseDetails from "@/components/license-details";
 import { getCertificateAssets } from "@/lib/data/get-system-config";
@@ -23,6 +24,10 @@ type LicenseWorkflowView = {
   workflowCode: string;
   currentStepNumber: number;
   isCompleted: boolean;
+  approvalRoles: {
+    code: string;
+    label: string;
+  }[];
   transitions: {
     id: string;
     stepNumber: number;
@@ -176,11 +181,49 @@ async function getLicenseWorkflowByLicenseId(
     .where(eq(licenseWorkflowTransitions.instanceId, instanceRow.instance.id))
     .orderBy(desc(licenseWorkflowTransitions.createdAt));
 
+  let approvalRoles: { code: string; label: string }[] = [];
+  try {
+    const definition = JSON.parse(instanceRow.workflow.definition) as {
+      steps?: Array<{ stepNumber?: number; roles?: string[] }>;
+    };
+
+    if (Array.isArray(definition.steps)) {
+      const ordered = definition.steps
+        .slice()
+        .sort((a, b) => Number(a.stepNumber ?? 0) - Number(b.stepNumber ?? 0));
+      const roleCodes = Array.from(
+        new Set(
+          ordered.flatMap((step) =>
+            Array.isArray(step.roles)
+              ? step.roles.map((r) => String(r).trim().toUpperCase()).filter(Boolean)
+              : [],
+          ),
+        ),
+      );
+
+      if (roleCodes.length > 0) {
+        const roleRows = await db
+          .select({ code: roles.code, name: roles.name })
+          .from(roles)
+          .where(inArray(roles.code, roleCodes));
+        const labelByCode = new Map(roleRows.map((r) => [r.code, r.name]));
+
+        approvalRoles = roleCodes.map((code) => ({
+          code,
+          label: labelByCode.get(code) ?? code.replaceAll("_", " "),
+        }));
+      }
+    }
+  } catch {
+    approvalRoles = [];
+  }
+
   return {
     workflowName: instanceRow.workflow.name,
     workflowCode: instanceRow.workflow.code,
     currentStepNumber: instanceRow.instance.currentStepNumber,
     isCompleted: instanceRow.instance.isCompleted,
+    approvalRoles,
     transitions: transitionRows.map((row) => ({
       id: row.transition.id,
       stepNumber: row.transition.stepNumber,

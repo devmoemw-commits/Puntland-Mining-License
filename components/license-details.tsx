@@ -60,6 +60,10 @@ export default function LicenseDetails({
     workflowCode: string;
     currentStepNumber: number;
     isCompleted: boolean;
+    approvalRoles: {
+      code: string;
+      label: string;
+    }[];
     transitions: {
       id: string;
       stepNumber: number;
@@ -94,6 +98,15 @@ export default function LicenseDetails({
 
   // Determine status based on days remaining
   const isActive = daysRemaining > 0;
+  const roleLabel = (role: string) => role.replaceAll("_", " ");
+  const approvalRoles =
+    workflow?.approvalRoles?.length
+      ? workflow.approvalRoles
+      : [
+          { code: "ACCOUNTANT", label: "ACCOUNTANT" },
+          { code: "ADMINISTRATOR", label: "ADMINISTRATOR" },
+          { code: "CEO", label: "CEO" },
+        ];
 
   // Add this function after the component declaration and before the return statement
   const downloadFile = async (url: string, filename: string) => {
@@ -862,61 +875,69 @@ export default function LicenseDetails({
                 <h2 className="text-xl font-semibold">Approval Workflow</h2>
               </div>
 
-              {workflow ? (
-                <>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                    <div className="rounded-md border p-3">
-                      <p className="text-xs text-gray-500">Workflow</p>
-                      <p className="font-medium">{workflow.workflowName}</p>
-                      <p className="text-xs text-gray-500">{workflow.workflowCode}</p>
-                    </div>
-                    <div className="rounded-md border p-3">
-                      <p className="text-xs text-gray-500">Current Step</p>
-                      <p className="font-medium">{workflow.currentStepNumber}</p>
-                    </div>
-                    <div className="rounded-md border p-3">
-                      <p className="text-xs text-gray-500">Status</p>
-                      <p className="font-medium">
-                        {workflow.isCompleted ? "Completed" : "In Progress"}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <p className="text-sm font-medium">Transition History</p>
-                    {workflow.transitions.length === 0 ? (
-                      <p className="text-sm text-gray-500">No workflow transitions yet.</p>
-                    ) : (
-                      workflow.transitions.map((transition) => (
-                        <div key={transition.id} className="rounded-md border p-3">
-                          <div className="flex flex-wrap items-center gap-2 text-sm">
-                            <Badge variant="outline">Step {transition.stepNumber}</Badge>
-                            <span className="font-medium">
-                              {transition.fromStatus} -&gt; {transition.toStatus}
-                            </span>
-                            <span className="text-gray-500">
-                              {formatDate(transition.createdAt, "PPpp")}
-                            </span>
-                          </div>
-                          <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
-                            By: {transition.actedByName ?? "Unknown"}{" "}
-                            {transition.actedByRole ? `(${transition.actedByRole})` : ""}
-                          </p>
-                          {transition.comment ? (
-                            <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
-                              Comment: {transition.comment}
-                            </p>
-                          ) : null}
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </>
-              ) : (
-                <p className="text-sm text-gray-500">
-                  No approval workflow is attached to this license yet.
+              <div className="mb-4 text-center">
+                <p className="font-semibold text-lg">Approvals</p>
+                <p className="text-xs text-gray-500">
+                  {workflow
+                    ? `${workflow.workflowName} (${workflow.workflowCode}) • Step ${workflow.currentStepNumber} • ${workflow.isCompleted ? "Completed" : "In Progress"}`
+                    : "Workflow is not attached yet"}
                 </p>
-              )}
+              </div>
+
+              <div className="rounded-md border overflow-hidden">
+                <div className="grid grid-cols-4 bg-muted/30 border-b">
+                  <div className="p-3 font-semibold text-sm border-r">By:</div>
+                  {approvalRoles.map((role) => (
+                    <div key={role.code} className="p-3 font-semibold text-center border-r last:border-r-0">
+                      {role.label}
+                    </div>
+                  ))}
+                </div>
+                <div className="grid grid-cols-4">
+                  <div className="p-3 font-semibold text-sm border-r border-t">Date</div>
+                  {approvalRoles.map((role) => {
+                    const transition = workflow?.transitions.find(
+                      (item) => item.actedByRole?.toUpperCase() === role.code,
+                    );
+
+                    return (
+                      <div key={role.code} className="p-3 border-r last:border-r-0 border-t text-center">
+                        <div className="h-8 flex items-center justify-center text-gray-700">
+                          {transition?.actedByName ? (
+                            <span className="italic tracking-wide">{transition.actedByName}</span>
+                          ) : (
+                            <span className="text-gray-300">--------------------</span>
+                          )}
+                        </div>
+                        <p className="text-sm font-medium mt-1">{transition?.actedByName ?? role.label}</p>
+                        <p className="text-xs text-gray-500">
+                          {transition ? formatDate(transition.createdAt, "dd MMMM, yyyy") : "--"}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="mt-4 flex items-center justify-between gap-3 flex-wrap">
+                <p className="text-sm text-gray-600">
+                  You can approve this as{" "}
+                  <span className="font-semibold">
+                    {session?.user?.role ? roleLabel(session.user.role) : "current role"}
+                  </span>
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button type="button" className="bg-red-600 hover:bg-red-700 text-white">
+                    Reject
+                  </Button>
+                  <Button type="button" className="bg-orange-600 hover:bg-orange-700 text-white">
+                    Return
+                  </Button>
+                  <Button type="button" className="bg-green-600 hover:bg-green-700 text-white">
+                    Approve
+                  </Button>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
