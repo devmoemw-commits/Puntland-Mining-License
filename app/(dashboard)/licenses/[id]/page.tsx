@@ -1,8 +1,15 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/database/drizzle";
-import { districts, licenses, users } from "@/database/schema";
-import { eq } from "drizzle-orm";
+import {
+  approvalWorkflows,
+  districts,
+  licenseWorkflowInstances,
+  licenseWorkflowTransitions,
+  licenses,
+  users,
+} from "@/database/schema";
+import { desc, eq } from "drizzle-orm";
 import type { License, Location } from "@/types";
 import LicenseDetails from "@/components/license-details";
 import { getCertificateAssets } from "@/lib/data/get-system-config";
@@ -10,6 +17,23 @@ import { getCertificateAssets } from "@/lib/data/get-system-config";
 interface Props {
   params: Promise<{ id: string }>;
 }
+
+type LicenseWorkflowView = {
+  workflowName: string;
+  workflowCode: string;
+  currentStepNumber: number;
+  isCompleted: boolean;
+  transitions: {
+    id: string;
+    stepNumber: number;
+    fromStatus: string;
+    toStatus: string;
+    comment: string | null;
+    createdAt: string;
+    actedByName: string | null;
+    actedByRole: string | null;
+  }[];
+} | null;
 
 function toIso(v: Date | string | null | undefined): string {
   if (v == null) return "";
@@ -85,11 +109,59 @@ async function getLicenseById(id: string): Promise<License | null> {
   };
 }
 
+async function getLicenseWorkflowByLicenseId(
+  licenseId: string,
+): Promise<LicenseWorkflowView> {
+  const [instanceRow] = await db
+    .select({
+      instance: licenseWorkflowInstances,
+      workflow: approvalWorkflows,
+    })
+    .from(licenseWorkflowInstances)
+    .innerJoin(
+      approvalWorkflows,
+      eq(licenseWorkflowInstances.workflowId, approvalWorkflows.id),
+    )
+    .where(eq(licenseWorkflowInstances.licenseId, licenseId))
+    .limit(1);
+
+  if (!instanceRow) return null;
+
+  const transitionRows = await db
+    .select({
+      transition: licenseWorkflowTransitions,
+      actorName: users.name,
+      actorRole: users.role,
+    })
+    .from(licenseWorkflowTransitions)
+    .leftJoin(users, eq(licenseWorkflowTransitions.actedByUserId, users.id))
+    .where(eq(licenseWorkflowTransitions.instanceId, instanceRow.instance.id))
+    .orderBy(desc(licenseWorkflowTransitions.createdAt));
+
+  return {
+    workflowName: instanceRow.workflow.name,
+    workflowCode: instanceRow.workflow.code,
+    currentStepNumber: instanceRow.instance.currentStepNumber,
+    isCompleted: instanceRow.instance.isCompleted,
+    transitions: transitionRows.map((row) => ({
+      id: row.transition.id,
+      stepNumber: row.transition.stepNumber,
+      fromStatus: row.transition.fromStatus,
+      toStatus: row.transition.toStatus,
+      comment: row.transition.comment ?? null,
+      createdAt: toIso(row.transition.createdAt),
+      actedByName: row.actorName ?? null,
+      actedByRole: row.actorRole ?? null,
+    })),
+  };
+}
+
 const Page = async ({ params }: Props) => {
   const { id } = await params;
-  const [license, certificateAssets] = await Promise.all([
+  const [license, certificateAssets, workflow] = await Promise.all([
     getLicenseById(id),
     getCertificateAssets(),
+    getLicenseWorkflowByLicenseId(id),
   ]);
 
   if (!license) {
@@ -111,6 +183,7 @@ const Page = async ({ params }: Props) => {
       license={license}
       certificateAssets={certificateAssets}
       signerSignatureUrl={signerSignatureUrl}
+      workflow={workflow}
     />
   );
 };

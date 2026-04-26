@@ -49,11 +49,28 @@ export default function LicenseDetails({
   license,
   certificateAssets,
   signerSignatureUrl,
+  workflow,
 }: {
   license: License;
   certificateAssets?: CertificateAssets;
   /** ImageKit URL from the signing user’s profile (`users.signature_image_url`). */
   signerSignatureUrl?: string | null;
+  workflow?: {
+    workflowName: string;
+    workflowCode: string;
+    currentStepNumber: number;
+    isCompleted: boolean;
+    transitions: {
+      id: string;
+      stepNumber: number;
+      fromStatus: string;
+      toStatus: string;
+      comment: string | null;
+      createdAt: string;
+      actedByName: string | null;
+      actedByRole: string | null;
+    }[];
+  } | null;
 }) {
   const [signature, setSignature] = useState(license.signature);
   const [isPending, startTransition] = useTransition();
@@ -833,6 +850,73 @@ export default function LicenseDetails({
                   <p>Supported file formats: PDF, DOC, DOCX, PNG, JPG, JPEG</p>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          <Card className="md:col-span-3">
+            <CardContent className="p-6">
+              <div className="flex items-center mb-4">
+                <div className="bg-blue-100 p-2 rounded-full mr-3">
+                  <Clock className="h-5 w-5 text-blue-600" />
+                </div>
+                <h2 className="text-xl font-semibold">Approval Workflow</h2>
+              </div>
+
+              {workflow ? (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div className="rounded-md border p-3">
+                      <p className="text-xs text-gray-500">Workflow</p>
+                      <p className="font-medium">{workflow.workflowName}</p>
+                      <p className="text-xs text-gray-500">{workflow.workflowCode}</p>
+                    </div>
+                    <div className="rounded-md border p-3">
+                      <p className="text-xs text-gray-500">Current Step</p>
+                      <p className="font-medium">{workflow.currentStepNumber}</p>
+                    </div>
+                    <div className="rounded-md border p-3">
+                      <p className="text-xs text-gray-500">Status</p>
+                      <p className="font-medium">
+                        {workflow.isCompleted ? "Completed" : "In Progress"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <p className="text-sm font-medium">Transition History</p>
+                    {workflow.transitions.length === 0 ? (
+                      <p className="text-sm text-gray-500">No workflow transitions yet.</p>
+                    ) : (
+                      workflow.transitions.map((transition) => (
+                        <div key={transition.id} className="rounded-md border p-3">
+                          <div className="flex flex-wrap items-center gap-2 text-sm">
+                            <Badge variant="outline">Step {transition.stepNumber}</Badge>
+                            <span className="font-medium">
+                              {transition.fromStatus} -&gt; {transition.toStatus}
+                            </span>
+                            <span className="text-gray-500">
+                              {formatDate(transition.createdAt, "PPpp")}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                            By: {transition.actedByName ?? "Unknown"}{" "}
+                            {transition.actedByRole ? `(${transition.actedByRole})` : ""}
+                          </p>
+                          {transition.comment ? (
+                            <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                              Comment: {transition.comment}
+                            </p>
+                          ) : null}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </>
+              ) : (
+                <p className="text-sm text-gray-500">
+                  No approval workflow is attached to this license yet.
+                </p>
+              )}
             </CardContent>
           </Card>
         </div>
