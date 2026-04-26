@@ -2,34 +2,36 @@
 
 import Link from "next/link"
 import { Plus } from "lucide-react"
-import { headers } from "next/headers"
 
 import { DataTable } from "./_components/data-table"
 import { columns, License } from "./column"
+import { db } from "@/database/drizzle"
+import { districts, licenses } from "@/database/schema"
+import { eq } from "drizzle-orm"
+import { Permissions } from "@/lib/permissions"
+import { requireActionPermission } from "@/lib/permissions-server"
 
 //fetch license data from api
 async function getLicenses(): Promise<License[]> {
-  try {
-    const headerStore = await headers()
-    const host = headerStore.get("x-forwarded-host") ?? headerStore.get("host")
-    const protocol = headerStore.get("x-forwarded-proto") ?? "https"
-    const baseUrl = host ? `${protocol}://${host}` : "http://localhost:3000"
+  const denied = await requireActionPermission(Permissions.LICENSE_REGISTER)
+  if (denied) {
+    console.error("Access denied while loading licenses:", denied)
+    return []
+  }
 
-    const res = await fetch(`${baseUrl}/api/licenses`, {
-      method: "GET",
-      cache: "no-store",
-    })
-    if (!res.ok) {
-      console.error("Failed to load licenses:", res.status, res.statusText)
-      return []
-    }
-    const contentType = res.headers.get("content-type") ?? ""
-    if (!contentType.includes("application/json")) {
-      console.error("Unexpected response content type for /api/licenses:", contentType)
-      return []
-    }
-    const data = await res.json()
-    return Array.isArray(data) ? data : []
+  try {
+    const rows = await db
+      .select({
+        license: licenses,
+        district: districts,
+      })
+      .from(licenses)
+      .leftJoin(districts, eq(licenses.district_id, districts.id))
+
+    return rows.map((item) => ({
+      ...item.license,
+      location: item.district,
+    })) as License[]
   } catch (error) {
     console.error("Error loading licenses:", error)
     return []
