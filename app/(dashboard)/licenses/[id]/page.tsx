@@ -27,6 +27,8 @@ type LicenseWorkflowView = {
   approvalRoles: {
     code: string;
     label: string;
+    userName: string | null;
+    userSignatureUrl: string | null;
   }[];
   transitions: {
     id: string;
@@ -37,6 +39,7 @@ type LicenseWorkflowView = {
     createdAt: string;
     actedByName: string | null;
     actedByRole: string | null;
+    actedBySignatureUrl: string | null;
   }[];
 } | null;
 
@@ -175,13 +178,19 @@ async function getLicenseWorkflowByLicenseId(
       transition: licenseWorkflowTransitions,
       actorName: users.name,
       actorRole: users.role,
+      actorSignatureUrl: users.signatureImageUrl,
     })
     .from(licenseWorkflowTransitions)
     .leftJoin(users, eq(licenseWorkflowTransitions.actedByUserId, users.id))
     .where(eq(licenseWorkflowTransitions.instanceId, instanceRow.instance.id))
     .orderBy(desc(licenseWorkflowTransitions.createdAt));
 
-  let approvalRoles: { code: string; label: string }[] = [];
+  let approvalRoles: {
+    code: string;
+    label: string;
+    userName: string | null;
+    userSignatureUrl: string | null;
+  }[] = [];
   try {
     const definition = JSON.parse(instanceRow.workflow.definition) as {
       steps?: Array<{ stepNumber?: number; roles?: string[] }>;
@@ -207,10 +216,32 @@ async function getLicenseWorkflowByLicenseId(
           .from(roles)
           .where(inArray(roles.code, roleCodes));
         const labelByCode = new Map(roleRows.map((r) => [r.code, r.name]));
+        const roleUsers = await db
+          .select({
+            role: users.role,
+            name: users.name,
+            signatureImageUrl: users.signatureImageUrl,
+          })
+          .from(users)
+          .where(inArray(users.role, roleCodes));
+        const userByRole = new Map<
+          string,
+          { name: string | null; signatureImageUrl: string | null }
+        >();
+        for (const user of roleUsers) {
+          if (!userByRole.has(user.role)) {
+            userByRole.set(user.role, {
+              name: user.name ?? null,
+              signatureImageUrl: user.signatureImageUrl ?? null,
+            });
+          }
+        }
 
         approvalRoles = roleCodes.map((code) => ({
           code,
           label: labelByCode.get(code) ?? code.replaceAll("_", " "),
+          userName: userByRole.get(code)?.name ?? null,
+          userSignatureUrl: userByRole.get(code)?.signatureImageUrl ?? null,
         }));
       }
     }
@@ -233,6 +264,7 @@ async function getLicenseWorkflowByLicenseId(
       createdAt: toIso(row.transition.createdAt),
       actedByName: row.actorName ?? null,
       actedByRole: row.actorRole ?? null,
+      actedBySignatureUrl: row.actorSignatureUrl ?? null,
     })),
   };
 }

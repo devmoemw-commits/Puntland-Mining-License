@@ -6,6 +6,7 @@ import {
   licenses,
   licenseWorkflowInstances,
   licenseWorkflowTransitions,
+  users,
 } from "@/database/schema";
 import { actionClient } from "@/lib/safe-action";
 import {
@@ -307,6 +308,9 @@ export const UpdateLicenseStatus = actionClient
 
     try {
       const session = await auth();
+      if (!session?.user?.id) {
+        return { error: "Unauthorized" };
+      }
       const [current] = await db
         .select({ status: licenses.status })
         .from(licenses)
@@ -347,12 +351,28 @@ export const UpdateLicenseStatus = actionClient
           }
         }
 
+        if (status === "APPROVED") {
+          const [actor] = await db
+            .select({ signatureImageUrl: users.signatureImageUrl })
+            .from(users)
+            .where(eq(users.id, session.user.id))
+            .limit(1);
+          if (!actor?.signatureImageUrl) {
+            return {
+              error:
+                "You must upload your signature in profile before approving a license.",
+            };
+          }
+        }
+
         await db.transaction(async (tx) => {
           await tx
             .update(licenses)
             .set({
               status,
               review_comment: status === "REVIEW" ? comment ?? null : null,
+              signature: status === "APPROVED" ? true : false,
+              signed_by_user_id: status === "APPROVED" ? session.user.id : null,
               updated_at: new Date(),
             })
             .where(eq(licenses.id, id));
@@ -398,6 +418,8 @@ export const UpdateLicenseStatus = actionClient
           .set({
             status,
             review_comment: status === "REVIEW" ? comment ?? null : null,
+            signature: status === "APPROVED" ? true : false,
+            signed_by_user_id: status === "APPROVED" ? session.user.id : null,
             updated_at: new Date(),
           })
           .where(eq(licenses.id, id));

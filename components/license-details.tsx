@@ -39,7 +39,10 @@ import type { License } from "@/types";
 import type { CertificateAssets } from "@/lib/data/get-system-config";
 import Image from "next/image";
 import MiningLicense from "./mining-license-template";
-import { UpdateLicenseSignature } from "@/lib/actions/licenses.action";
+import {
+  UpdateLicenseSignature,
+  UpdateLicenseStatus,
+} from "@/lib/actions/licenses.action";
 import { toast } from "sonner";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -63,6 +66,8 @@ export default function LicenseDetails({
     approvalRoles: {
       code: string;
       label: string;
+      userName: string | null;
+      userSignatureUrl: string | null;
     }[];
     transitions: {
       id: string;
@@ -73,11 +78,13 @@ export default function LicenseDetails({
       createdAt: string;
       actedByName: string | null;
       actedByRole: string | null;
+      actedBySignatureUrl: string | null;
     }[];
   } | null;
 }) {
   const [signature, setSignature] = useState(license.signature);
   const [isPending, startTransition] = useTransition();
+  const [isWorkflowPending, startWorkflowTransition] = useTransition();
   const componentRef = useRef(null);
 
   const { data: session } = useSession();
@@ -103,9 +110,19 @@ export default function LicenseDetails({
     workflow?.approvalRoles?.length
       ? workflow.approvalRoles
       : [
-          { code: "ACCOUNTANT", label: "ACCOUNTANT" },
-          { code: "ADMINISTRATOR", label: "ADMINISTRATOR" },
-          { code: "CEO", label: "CEO" },
+          {
+            code: "ACCOUNTANT",
+            label: "ACCOUNTANT",
+            userName: null,
+            userSignatureUrl: null,
+          },
+          {
+            code: "ADMINISTRATOR",
+            label: "ADMINISTRATOR",
+            userName: null,
+            userSignatureUrl: null,
+          },
+          { code: "CEO", label: "CEO", userName: null, userSignatureUrl: null },
         ];
 
   // Add this function after the component declaration and before the return statement
@@ -150,6 +167,34 @@ export default function LicenseDetails({
         console.error("Error updating signature:", error);
         // Revert the checkbox state on error
         setSignature(!newSignatureStatus);
+      }
+    });
+  };
+
+  const handleWorkflowAction = (
+    nextStatus: "REVIEW" | "APPROVED" | "REJECTED",
+    label: "approved" | "returned" | "rejected",
+  ) => {
+    startWorkflowTransition(async () => {
+      try {
+        const result = await UpdateLicenseStatus({
+          id: license.id,
+          status: nextStatus,
+          comment:
+            nextStatus === "REVIEW"
+              ? "Returned for revision by approver."
+              : undefined,
+        });
+
+        if (result?.data?.error) {
+          toast.error(String(result.data.error));
+          return;
+        }
+        toast.success(`License ${label} successfully`);
+        router.refresh();
+      } catch (error) {
+        toast.error("Failed to update workflow action");
+        console.error("Error taking workflow action:", error);
       }
     });
   };
@@ -885,32 +930,37 @@ export default function LicenseDetails({
               </div>
 
               <div className="rounded-md border overflow-hidden">
-                <div className="grid grid-cols-4 bg-muted/30 border-b">
-                  <div className="p-3 font-semibold text-sm border-r">By:</div>
-                  {approvalRoles.map((role) => (
-                    <div key={role.code} className="p-3 font-semibold text-center border-r last:border-r-0">
-                      {role.label}
-                    </div>
-                  ))}
-                </div>
-                <div className="grid grid-cols-4">
-                  <div className="p-3 font-semibold text-sm border-r border-t">Date</div>
+                <div
+                  className="grid"
+                  style={{ gridTemplateColumns: `repeat(${Math.max(1, approvalRoles.length)}, minmax(0, 1fr))` }}
+                >
                   {approvalRoles.map((role) => {
                     const transition = workflow?.transitions.find(
                       (item) => item.actedByRole?.toUpperCase() === role.code,
                     );
 
                     return (
-                      <div key={role.code} className="p-3 border-r last:border-r-0 border-t text-center">
+                      <div key={role.code} className="p-4 border-r last:border-r-0 text-center">
+                        <p className="font-semibold text-sm mb-3">{role.label}</p>
                         <div className="h-8 flex items-center justify-center text-gray-700">
-                          {transition?.actedByName ? (
+                          {transition?.actedBySignatureUrl || role.userSignatureUrl ? (
+                            <Image
+                              src={transition?.actedBySignatureUrl ?? role.userSignatureUrl ?? "/placeholder.svg"}
+                              alt={`${transition?.actedByName ?? role.userName ?? role.label} signature`}
+                              width={88}
+                              height={28}
+                              className="object-contain h-7 w-auto"
+                            />
+                          ) : transition?.actedByName ? (
                             <span className="italic tracking-wide">{transition.actedByName}</span>
                           ) : (
                             <span className="text-gray-300">--------------------</span>
                           )}
                         </div>
-                        <p className="text-sm font-medium mt-1">{transition?.actedByName ?? role.label}</p>
-                        <p className="text-xs text-gray-500">
+                        <p className="text-sm font-medium mt-2">
+                          {transition?.actedByName ?? role.userName ?? role.label}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
                           {transition ? formatDate(transition.createdAt, "dd MMMM, yyyy") : "--"}
                         </p>
                       </div>
@@ -927,13 +977,28 @@ export default function LicenseDetails({
                   </span>
                 </p>
                 <div className="flex items-center gap-2">
-                  <Button type="button" className="bg-red-600 hover:bg-red-700 text-white">
+                  <Button
+                    type="button"
+                    disabled={isWorkflowPending}
+                    onClick={() => handleWorkflowAction("REJECTED", "rejected")}
+                    className="bg-red-600 hover:bg-red-700 text-white"
+                  >
                     Reject
                   </Button>
-                  <Button type="button" className="bg-orange-600 hover:bg-orange-700 text-white">
+                  <Button
+                    type="button"
+                    disabled={isWorkflowPending}
+                    onClick={() => handleWorkflowAction("REVIEW", "returned")}
+                    className="bg-orange-600 hover:bg-orange-700 text-white"
+                  >
                     Return
                   </Button>
-                  <Button type="button" className="bg-green-600 hover:bg-green-700 text-white">
+                  <Button
+                    type="button"
+                    disabled={isWorkflowPending}
+                    onClick={() => handleWorkflowAction("APPROVED", "approved")}
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                  >
                     Approve
                   </Button>
                 </div>
