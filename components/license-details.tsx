@@ -6,6 +6,7 @@ import { useReactToPrint } from "react-to-print";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -91,6 +92,7 @@ export default function LicenseDetails({
   const [signature, setSignature] = useState(license.signature);
   const [isPending, startTransition] = useTransition();
   const [isWorkflowPending, startWorkflowTransition] = useTransition();
+  const [workflowComment, setWorkflowComment] = useState("");
   const componentRef = useRef(null);
 
   const { data: session } = useSession();
@@ -180,15 +182,22 @@ export default function LicenseDetails({
     nextStatus: "REVIEW" | "APPROVED" | "REJECTED",
     label: string,
   ) => {
+    const requiresReviewComment = workflow?.nextStep?.toStatus?.toUpperCase() === "REVIEW";
+    if (
+      requiresReviewComment &&
+      (nextStatus === "REVIEW" || nextStatus === "REJECTED") &&
+      !workflowComment.trim()
+    ) {
+      toast.error("Please add a review comment before submitting.");
+      return;
+    }
+
     startWorkflowTransition(async () => {
       try {
         const result = await UpdateLicenseStatus({
           id: license.id,
           status: nextStatus,
-          comment:
-            nextStatus === "REVIEW"
-              ? "Returned for revision by approver."
-              : undefined,
+          comment: workflowComment.trim() || undefined,
         });
 
         if (result?.data?.error) {
@@ -196,6 +205,7 @@ export default function LicenseDetails({
           return;
         }
         toast.success(`License ${label} successfully`);
+        setWorkflowComment("");
         router.refresh();
       } catch (error) {
         toast.error("Failed to update workflow action");
@@ -959,6 +969,7 @@ export default function LicenseDetails({
                     (workflow.nextStep.allowedRoles.length === 0 ||
                       workflow.nextStep.allowedRoles.includes(role.code));
                   const nextStatus = workflow?.nextStep?.toStatus?.toUpperCase();
+                  const requiresReviewComment = nextStatus === "REVIEW";
                   const primaryActionLabel =
                     nextStatus === "REVIEW"
                       ? "Review"
@@ -995,33 +1006,46 @@ export default function LicenseDetails({
                       </p>
 
                       {canCurrentRoleAct ? (
-                        <div className="mt-4 flex items-center justify-end gap-2">
-                          <Button
-                            type="button"
-                            size="sm"
-                            disabled={isWorkflowPending}
-                            onClick={() => handleWorkflowAction("REJECTED", "rejected")}
-                            className="bg-red-600 hover:bg-red-700 text-white"
-                          >
-                            <XCircle className="h-4 w-4 mr-1" />
-                            Reject
-                          </Button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            disabled={isWorkflowPending}
-                            onClick={() =>
-                              handleWorkflowAction(
-                                (nextStatus as "REVIEW" | "APPROVED" | "REJECTED") ??
-                                  "APPROVED",
-                                primaryActionLabel.toLowerCase() as "approved" | "returned" | "rejected",
-                              )
-                            }
-                            className="bg-green-600 hover:bg-green-700 text-white"
-                          >
-                            <CheckCircle className="h-4 w-4 mr-1" />
-                            {primaryActionLabel}
-                          </Button>
+                        <div className="mt-4 flex flex-col gap-2">
+                          {requiresReviewComment ? (
+                            <div className="w-full">
+                              <Textarea
+                                placeholder="Add review comment..."
+                                value={workflowComment}
+                                onChange={(e) => setWorkflowComment(e.target.value)}
+                                className="min-h-20 text-sm"
+                                disabled={isWorkflowPending}
+                              />
+                            </div>
+                          ) : null}
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
+                              type="button"
+                              size="sm"
+                              disabled={isWorkflowPending}
+                              onClick={() => handleWorkflowAction("REJECTED", "rejected")}
+                              className="bg-red-600 hover:bg-red-700 text-white"
+                            >
+                              <XCircle className="h-4 w-4 mr-1" />
+                              {requiresReviewComment ? "Reject Review" : "Reject"}
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              disabled={isWorkflowPending}
+                              onClick={() =>
+                                handleWorkflowAction(
+                                  (nextStatus as "REVIEW" | "APPROVED" | "REJECTED") ??
+                                    "APPROVED",
+                                  primaryActionLabel.toLowerCase() as "approved" | "returned" | "rejected",
+                                )
+                              }
+                              className="bg-green-600 hover:bg-green-700 text-white"
+                            >
+                              <CheckCircle className="h-4 w-4 mr-1" />
+                              {primaryActionLabel}
+                            </Button>
+                          </div>
                         </div>
                       ) : null}
                     </div>

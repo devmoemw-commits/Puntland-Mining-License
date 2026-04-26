@@ -370,7 +370,10 @@ export const UpdateLicenseStatus = actionClient
             .update(licenses)
             .set({
               status,
-              review_comment: status === "REVIEW" ? comment ?? null : null,
+              review_comment:
+                status === "REVIEW" || status === "REJECTED"
+                  ? comment ?? null
+                  : null,
               signature: status === "APPROVED" ? true : false,
               signed_by_user_id: status === "APPROVED" ? session.user.id : null,
               updated_at: new Date(),
@@ -417,7 +420,10 @@ export const UpdateLicenseStatus = actionClient
           .update(licenses)
           .set({
             status,
-            review_comment: status === "REVIEW" ? comment ?? null : null,
+            review_comment:
+              status === "REVIEW" || status === "REJECTED"
+                ? comment ?? null
+                : null,
             signature: status === "APPROVED" ? true : false,
             signed_by_user_id: status === "APPROVED" ? session.user.id : null,
             updated_at: new Date(),
