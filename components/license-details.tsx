@@ -106,7 +106,6 @@ export default function LicenseDetails({
 
   // Determine status based on days remaining
   const isActive = daysRemaining > 0;
-  const roleLabel = (role: string) => role.replaceAll("_", " ");
   const approvalRoles =
     workflow?.approvalRoles?.length
       ? workflow.approvalRoles
