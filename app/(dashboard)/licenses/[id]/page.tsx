@@ -24,6 +24,11 @@ type LicenseWorkflowView = {
   workflowCode: string;
   currentStepNumber: number;
   isCompleted: boolean;
+  nextStep: {
+    fromStatus: string;
+    toStatus: string;
+    allowedRoles: string[];
+  } | null;
   approvalRoles: {
     code: string;
     label: string;
@@ -119,6 +124,7 @@ async function getLicenseById(id: string): Promise<License | null> {
 
 async function getLicenseWorkflowByLicenseId(
   licenseId: string,
+  currentLicenseStatus: string,
 ): Promise<LicenseWorkflowView> {
   let [instanceRow] = await db
     .select({
@@ -191,9 +197,19 @@ async function getLicenseWorkflowByLicenseId(
     userName: string | null;
     userSignatureUrl: string | null;
   }[] = [];
+  let nextStep: {
+    fromStatus: string;
+    toStatus: string;
+    allowedRoles: string[];
+  } | null = null;
   try {
     const definition = JSON.parse(instanceRow.workflow.definition) as {
-      steps?: Array<{ stepNumber?: number; roles?: string[] }>;
+      steps?: Array<{
+        stepNumber?: number;
+        from?: string;
+        to?: string;
+        roles?: string[];
+      }>;
     };
 
     if (Array.isArray(definition.steps)) {
@@ -244,6 +260,22 @@ async function getLicenseWorkflowByLicenseId(
           userSignatureUrl: userByRole.get(code)?.signatureImageUrl ?? null,
         }));
       }
+
+      const step = ordered.find(
+        (s) =>
+          String(s.from ?? "").toUpperCase() ===
+            currentLicenseStatus.toUpperCase() &&
+          Number(s.stepNumber ?? 0) > instanceRow.instance.currentStepNumber,
+      );
+      if (step) {
+        nextStep = {
+          fromStatus: String(step.from ?? ""),
+          toStatus: String(step.to ?? ""),
+          allowedRoles: Array.isArray(step.roles)
+            ? step.roles.map((r) => String(r).trim().toUpperCase()).filter(Boolean)
+            : [],
+        };
+      }
     }
   } catch {
     approvalRoles = [];
@@ -254,6 +286,7 @@ async function getLicenseWorkflowByLicenseId(
     workflowCode: instanceRow.workflow.code,
     currentStepNumber: instanceRow.instance.currentStepNumber,
     isCompleted: instanceRow.instance.isCompleted,
+    nextStep,
     approvalRoles,
     transitions: transitionRows.map((row) => ({
       id: row.transition.id,
@@ -271,15 +304,16 @@ async function getLicenseWorkflowByLicenseId(
 
 const Page = async ({ params }: Props) => {
   const { id } = await params;
-  const [license, certificateAssets, workflow] = await Promise.all([
-    getLicenseById(id),
-    getCertificateAssets(),
-    getLicenseWorkflowByLicenseId(id),
-  ]);
+  const license = await getLicenseById(id);
 
   if (!license) {
     return <div className="p-6">License not found</div>;
   }
+
+  const [certificateAssets, workflow] = await Promise.all([
+    getCertificateAssets(),
+    getLicenseWorkflowByLicenseId(id, license.status ?? "PENDING"),
+  ]);
 
   let signerSignatureUrl: string | null = null;
   if (license.signature && license.signed_by_user_id) {

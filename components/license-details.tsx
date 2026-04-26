@@ -64,6 +64,11 @@ export default function LicenseDetails({
     workflowCode: string;
     currentStepNumber: number;
     isCompleted: boolean;
+    nextStep: {
+      fromStatus: string;
+      toStatus: string;
+      allowedRoles: string[];
+    } | null;
     approvalRoles: {
       code: string;
       label: string;
@@ -173,7 +178,7 @@ export default function LicenseDetails({
 
   const handleWorkflowAction = (
     nextStatus: "REVIEW" | "APPROVED" | "REJECTED",
-    label: "approved" | "returned" | "rejected",
+    label: string,
   ) => {
     startWorkflowTransition(async () => {
       try {
@@ -947,6 +952,21 @@ export default function LicenseDetails({
                   const isSigned = Boolean(transition);
                   const isCurrentRole =
                     (session?.user?.role ?? "").toUpperCase() === role.code;
+                  const canCurrentRoleAct =
+                    isCurrentRole &&
+                    !workflow?.isCompleted &&
+                    !!workflow?.nextStep &&
+                    (workflow.nextStep.allowedRoles.length === 0 ||
+                      workflow.nextStep.allowedRoles.includes(role.code));
+                  const nextStatus = workflow?.nextStep?.toStatus?.toUpperCase();
+                  const primaryActionLabel =
+                    nextStatus === "REVIEW"
+                      ? "Review"
+                      : nextStatus === "APPROVED"
+                        ? "Approve"
+                        : nextStatus === "REJECTED"
+                          ? "Reject"
+                          : "Approve";
 
                   return (
                     <div key={role.code} className="rounded-lg border bg-white p-4 shadow-xs dark:bg-gray-900">
@@ -974,7 +994,7 @@ export default function LicenseDetails({
                         {transition ? formatDate(transition.createdAt, "dd MMMM, yyyy") : "--"}
                       </p>
 
-                      {isCurrentRole && !workflow?.isCompleted ? (
+                      {canCurrentRoleAct ? (
                         <div className="mt-4 flex items-center justify-end gap-2">
                           <Button
                             type="button"
@@ -990,11 +1010,17 @@ export default function LicenseDetails({
                             type="button"
                             size="sm"
                             disabled={isWorkflowPending}
-                            onClick={() => handleWorkflowAction("APPROVED", "approved")}
+                            onClick={() =>
+                              handleWorkflowAction(
+                                (nextStatus as "REVIEW" | "APPROVED" | "REJECTED") ??
+                                  "APPROVED",
+                                primaryActionLabel.toLowerCase() as "approved" | "returned" | "rejected",
+                              )
+                            }
                             className="bg-green-600 hover:bg-green-700 text-white"
                           >
                             <CheckCircle className="h-4 w-4 mr-1" />
-                            Approve
+                            {primaryActionLabel}
                           </Button>
                         </div>
                       ) : null}
