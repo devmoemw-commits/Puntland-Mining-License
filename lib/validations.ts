@@ -13,6 +13,7 @@ export const signUpSchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters"),
   role: z.string().min(1).optional(),
   directPermissionCodes: z.array(z.string()).optional(),
+  signatureImageUrl: z.string().url().nullable().optional(),
 });
 
 /** Admin edit user — password optional; if set, min 8 characters. */

@@ -72,6 +72,7 @@ export const signUp = async (params: AuthCredentials) => {
     password,
     role: roleParam,
     directPermissionCodes = [],
+    signatureImageUrl = null,
   } = params;
 
   const role = (roleParam ?? "OFFICER").trim().toUpperCase();
@@ -111,6 +112,7 @@ export const signUp = async (params: AuthCredentials) => {
         email,
         password: hashedPassword,
         role,
+        signatureImageUrl: signatureImageUrl ?? null,
       })
       .returning({ id: users.id });
 

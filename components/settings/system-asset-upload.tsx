@@ -24,7 +24,19 @@ const {
 } = config;
 
 const authenticator = async () => {
-  const response = await fetch(`${config.env.apiEndpoint}/api/auth/imagekit`);
+  const response = await fetch("/api/auth/imagekit", {
+    credentials: "include",
+  });
+  if (!response.ok) {
+    let message = "Failed to initialize upload";
+    try {
+      const err = (await response.json()) as { error?: string };
+      if (err?.error) message = err.error;
+    } catch {
+      // ignore parse errors and keep generic message
+    }
+    throw new Error(message);
+  }
   const data = await response.json();
   const { signature, expire, token } = data;
   return { token, expire, signature };
@@ -49,10 +61,14 @@ export function SystemAssetUpload({
   const [progress, setProgress] = useState(0);
   const [uploading, setUploading] = useState(false);
 
-  const onError = () => {
+  const onError = (error?: unknown) => {
     setUploading(false);
     setProgress(0);
-    toast.error("Upload failed");
+    const message =
+      error instanceof Error && error.message
+        ? error.message
+        : "Upload failed";
+    toast.error(message);
   };
 
   const onSuccess = (res: ImageKitUploadResponse) => {

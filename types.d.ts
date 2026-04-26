@@ -8,6 +8,8 @@ interface AuthCredentials {
   role?: string;
   /** Extra permissions stored in `user_permissions` (union with role permissions). */
   directPermissionCodes?: string[];
+  /** Optional user signature image URL uploaded to ImageKit. */
+  signatureImageUrl?: string | null;
 }
 
 declare module "next-auth" {

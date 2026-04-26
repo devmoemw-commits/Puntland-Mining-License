@@ -32,6 +32,7 @@ import { signUpSchema } from "@/lib/validations";
 import { signUp } from "@/lib/actions/auth.action";
 import type { RoleRow } from "@/lib/data/get-roles";
 import type { PermissionCatalogItem } from "@/components/users/role-permissions-matrix";
+import { SystemAssetUpload } from "@/components/settings/system-asset-upload";
 
 type SignUpFormData = {
   name: string;
@@ -39,6 +40,7 @@ type SignUpFormData = {
   password: string;
   role?: string;
   directPermissionCodes?: string[];
+  signatureImageUrl?: string | null;
 };
 
 type PasswordRequirements = {
@@ -76,6 +78,7 @@ export function SignUpForm({ roles = [], permissionCatalog = [] }: Props) {
       password: "",
       role: roles[0]?.code ?? "OFFICER",
       directPermissionCodes: [],
+      signatureImageUrl: null,
     },
   });
 
@@ -114,12 +117,14 @@ export function SignUpForm({ roles = [], permissionCatalog = [] }: Props) {
 
     try {
       const directExtra = form.getValues("directPermissionCodes") ?? [];
+      const signatureImageUrl = form.getValues("signatureImageUrl") ?? null;
       const result = await signUp({
         name: data.name,
         email: data.email,
         password: data.password,
         role: adminMode ? data.role : undefined,
         directPermissionCodes: adminMode ? directExtra : undefined,
+        signatureImageUrl,
       });
 
       if (!result.success) {
@@ -263,6 +268,27 @@ export function SignUpForm({ roles = [], permissionCatalog = [] }: Props) {
                   </label>
                 ))}
               </div>
+            </div>
+          )}
+
+          {adminMode && (
+            <div className="space-y-3">
+              <Label>Certificate signature (optional)</Label>
+              <p className="text-sm text-muted-foreground">
+                Upload signature now so this user can sign licenses immediately.
+              </p>
+              <SystemAssetUpload
+                label="User signature"
+                description="PNG/JPG only. This signature is stored in the user profile."
+                imageKitFolder="/users/pending-signature"
+                value={form.watch("signatureImageUrl") ?? ""}
+                onUrlChange={(url) =>
+                  form.setValue("signatureImageUrl", url ? url : null, {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  })
+                }
+              />
             </div>
           )}
 
