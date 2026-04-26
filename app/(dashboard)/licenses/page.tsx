@@ -28,10 +28,51 @@ async function getLicenses(): Promise<License[]> {
       .from(licenses)
       .leftJoin(districts, eq(licenses.district_id, districts.id))
 
-    return rows.map((item) => ({
-      ...item.license,
-      location: item.district,
-    })) as License[]
+    return rows.map((item) => {
+      const row = item.license
+      return {
+        ...row,
+        company_address: row.company_address ?? "",
+        region: row.region ?? "",
+        country_of_origin: row.country_of_origin ?? "",
+        full_name: row.full_name ?? "",
+        mobile_number: row.mobile_number ?? "",
+        email_address: row.email_address ?? "",
+        id_card_number: row.id_card_number ?? "",
+        passport_photos: row.passport_photos ?? "",
+        company_profile: row.company_profile ?? "",
+        receipt_of_payment: row.receipt_of_payment ?? "",
+        license_type: row.license_type ?? "",
+        license_category: row.license_category ?? "",
+        calculated_fee: row.calculated_fee?.toString() ?? "",
+        license_area: Array.isArray(row.license_area)
+          ? row.license_area.join(", ")
+          : row.license_area ?? "",
+        created_at:
+          row.created_at instanceof Date
+            ? row.created_at.toISOString()
+            : String(row.created_at ?? ""),
+        updated_at:
+          row.updated_at instanceof Date
+            ? row.updated_at.toISOString()
+            : String(row.updated_at ?? ""),
+        expire_date:
+          row.expire_date instanceof Date
+            ? row.expire_date.toISOString()
+            : String(row.expire_date ?? ""),
+        location: item.district
+          ? {
+              id: item.district.id,
+              name: item.district.name,
+              region_id: item.district.region_id,
+              created_at:
+                item.district.created_at instanceof Date
+                  ? item.district.created_at.toISOString()
+                  : String(item.district.created_at ?? ""),
+            }
+          : undefined,
+      }
+    })
   } catch (error) {
     console.error("Error loading licenses:", error)
     return []
