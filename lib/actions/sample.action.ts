@@ -110,7 +110,7 @@ export const UpdateSampleAnalysis = actionClient
 // Create the delete license action
 export const DeleteSample = actionClient
   .schema(deleteSampleSchema)
-  .action(async ({ parsedInput: { id: _id } }) => {
+  .action(async () => {
     const forbidden = await requireActionPermission(
       Permissions.SAMPLE_ANALYSIS_ACCESS,
     );

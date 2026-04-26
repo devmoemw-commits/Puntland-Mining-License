@@ -54,7 +54,7 @@ const deleteSchema = z.object({
 
 export const deleteRole = actionClient
   .schema(deleteSchema)
-  .action(async ({ parsedInput: _parsedInput }) => {
+  .action(async () => {
     const denied = await requireActionPermission(Permissions.USERS_MANAGE);
     if (denied) return { error: denied };
 

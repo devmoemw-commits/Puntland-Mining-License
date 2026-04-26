@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
@@ -99,6 +99,41 @@ const formSchema = z.object({
 interface LicenseUpdateFormProps {
   license: License
   onSuccess?: () => void
+}
+
+const LICENSE_TYPES = ["New License", "Renewal"]
+const BUSINESS_TYPES = ["Mining", "Construction", "Manufacturing", "Consulting", "Other"]
+const LICENSE_CATEGORIES = {
+  "New License": [
+    "Large Scale Mining Permit",
+    "Small Scale Mining Permit",
+    "Artisanal Gold Mining Permit",
+    "Mining Equipment Rental Permit",
+    "Stone Crusher Permit",
+  ],
+  Renewal: [
+    "Large Scale Mining Permit",
+    "Small Scale Mining Permit",
+    "Artisanal Gold Mining Permit",
+    "Mining Equipment Rental Permit",
+    "Stone Crusher Permit",
+  ],
+}
+const FEES = {
+  "New License": {
+    "Large Scale Mining": "5000",
+    "Small Scale Mining": "2000",
+    "Artisanal Gold Mining": "2500",
+    "Mining Equipment Rental": "1500",
+    "Stone Crusher": "700",
+  },
+  Renewal: {
+    "Large Scale Mining": "2000",
+    "Small Scale Mining": "500",
+    "Artisanal Gold Mining": "1000",
+    "Mining Equipment Rental": "500",
+    "Stone Crusher": "400",
+  },
 }
 
 export function LicenseUpdateForm({ license, onSuccess }: LicenseUpdateFormProps) {
@@ -213,31 +248,10 @@ export function LicenseUpdateForm({ license, onSuccess }: LicenseUpdateFormProps
   const license_type = form.watch("license_type")
   const license_category = form.watch("license_category")
 
-  // License types and categories
-  const licenseTypes = ["New License", "Renewal"]
-  const businessTypes = ["Mining", "Construction", "Manufacturing", "Consulting", "Other"]
-
-  const licenseCategories = {
-    "New License": [
-      "Large Scale Mining Permit",
-      "Small Scale Mining Permit",
-      "Artisanal Gold Mining Permit",
-      "Mining Equipment Rental Permit",
-      "Stone Crusher Permit",
-    ],
-    Renewal: [
-      "Large Scale Mining Permit",
-      "Small Scale Mining Permit",
-      "Artisanal Gold Mining Permit",
-      "Mining Equipment Rental Permit",
-      "Stone Crusher Permit",
-    ],
-  }
-
   // Helper function to get categories for a license type
-  const getCategoriesForType = (type: string) => {
-    return licenseCategories[type as keyof typeof licenseCategories] || []
-  }
+  const getCategoriesForType = useCallback((type: string) => {
+    return LICENSE_CATEGORIES[type as keyof typeof LICENSE_CATEGORIES] || []
+  }, [])
 
   // Reset category when license type changes, but preserve valid existing categories
   useEffect(() => {
@@ -254,26 +268,9 @@ export function LicenseUpdateForm({ license, onSuccess }: LicenseUpdateFormProps
         }
       }
     }
-  }, [license_type, form, license.license_type])
+  }, [license_type, form, license.license_type, getCategoriesForType])
 
   // Fee structure
-  const fees = {
-    "New License": {
-      "Large Scale Mining": "5000",
-      "Small Scale Mining": "2000",
-      "Artisanal Gold Mining": "2500",
-      "Mining Equipment Rental": "1500",
-      "Stone Crusher": "700",
-    },
-    Renewal: {
-      "Large Scale Mining": "2000",
-      "Small Scale Mining": "500",
-      "Artisanal Gold Mining": "1000",
-      "Mining Equipment Rental": "500",
-      "Stone Crusher": "400",
-    },
-  }
-
   // Calculate fee based on selections
   useEffect(() => {
     if (license_type && license_category) {
@@ -290,7 +287,10 @@ export function LicenseUpdateForm({ license, onSuccess }: LicenseUpdateFormProps
                 ? "Stone Crusher"
                 : ""
 
-      const fee = fees[license_type as keyof typeof fees]?.[categoryKey as keyof (typeof fees)["New License"]] || ""
+      const fee =
+        FEES[license_type as keyof typeof FEES]?.[
+          categoryKey as keyof (typeof FEES)["New License"]
+        ] || ""
 
       if (fee && form.getValues("calculated_fee") !== fee) {
         form.setValue("calculated_fee", fee, { shouldValidate: true })
@@ -375,7 +375,7 @@ export function LicenseUpdateForm({ license, onSuccess }: LicenseUpdateFormProps
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {businessTypes.map((type) => (
+                            {BUSINESS_TYPES.map((type) => (
                               <SelectItem key={type} value={type}>
                                 {type}
                               </SelectItem>
@@ -653,7 +653,7 @@ export function LicenseUpdateForm({ license, onSuccess }: LicenseUpdateFormProps
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {licenseTypes.map((type) => (
+                            {LICENSE_TYPES.map((type) => (
                               <SelectItem key={type} value={type}>
                                 {type}
                               </SelectItem>

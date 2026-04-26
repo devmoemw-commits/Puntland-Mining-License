@@ -65,24 +65,33 @@ function parseWorkflowDefinition(definition: string): WorkflowDefinition | null 
 }
 
 async function getActiveLicenseWorkflow() {
-  return db.query.approvalWorkflows.findFirst({
-    where: and(
-      eq(approvalWorkflows.module, LICENSE_MODULE),
-      eq(approvalWorkflows.isActive, true),
-    ),
-    orderBy: [desc(approvalWorkflows.updatedAt)],
-  });
+  const [workflow] = await db
+    .select()
+    .from(approvalWorkflows)
+    .where(
+      and(
+        eq(approvalWorkflows.module, LICENSE_MODULE),
+        eq(approvalWorkflows.isActive, true),
+      ),
+    )
+    .orderBy(desc(approvalWorkflows.updatedAt))
+    .limit(1);
+  return workflow ?? null;
 }
 
 async function ensureLicenseWorkflowInstance(licenseId: string) {
-  let instance = await db.query.licenseWorkflowInstances.findFirst({
-    where: eq(licenseWorkflowInstances.licenseId, licenseId),
-  });
+  let [instance] = await db
+    .select()
+    .from(licenseWorkflowInstances)
+    .where(eq(licenseWorkflowInstances.licenseId, licenseId))
+    .limit(1);
 
   if (instance) {
-    const workflow = await db.query.approvalWorkflows.findFirst({
-      where: eq(approvalWorkflows.id, instance.workflowId),
-    });
+    const [workflow] = await db
+      .select()
+      .from(approvalWorkflows)
+      .where(eq(approvalWorkflows.id, instance.workflowId))
+      .limit(1);
     return workflow ? { instance, workflow } : null;
   }
 
@@ -99,9 +108,12 @@ async function ensureLicenseWorkflowInstance(licenseId: string) {
       .returning();
     instance = created;
   } catch {
-    instance = await db.query.licenseWorkflowInstances.findFirst({
-      where: eq(licenseWorkflowInstances.licenseId, licenseId),
-    });
+    const [existing] = await db
+      .select()
+      .from(licenseWorkflowInstances)
+      .where(eq(licenseWorkflowInstances.licenseId, licenseId))
+      .limit(1);
+    instance = existing;
   }
 
   if (!instance) return null;
@@ -258,7 +270,7 @@ export const UpdateLicense = actionClient
 // Create the delete license action
 export const DeleteLicense = actionClient
   .schema(deleteLicenseSchema)
-  .action(async ({ parsedInput: { license_ref_id: _licenseRefId } }) => {
+  .action(async () => {
     const forbidden = await requireActionPermission(Permissions.LICENSE_MODERATE);
     if (forbidden) {
       return { error: forbidden };
@@ -295,10 +307,11 @@ export const UpdateLicenseStatus = actionClient
 
     try {
       const session = await auth();
-      const current = await db.query.licenses.findFirst({
-        where: eq(licenses.id, id),
-        columns: { status: true },
-      });
+      const [current] = await db
+        .select({ status: licenses.status })
+        .from(licenses)
+        .where(eq(licenses.id, id))
+        .limit(1);
 
       if (!current) {
         return { error: "License not found" };

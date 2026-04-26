@@ -387,7 +387,7 @@ export const updateUserPassword = async (userId: string, data: { currentPassword
 // Create the delete license action
 export const DeleteUser = actionClient
   .schema(deleteUserSchema)
-  .action(async ({ parsedInput: { id: _id } }) => {
+  .action(async () => {
     const forbidden = await requireActionPermission(Permissions.USERS_MANAGE);
     if (forbidden) {
       return { error: forbidden };
