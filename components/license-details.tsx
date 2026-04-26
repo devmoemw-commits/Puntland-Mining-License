@@ -955,6 +955,17 @@ export default function LicenseDetails({
                   const actorName = transition?.actedByName ?? role.userName ?? "Unassigned";
                   const actorSignature = transition?.actedBySignatureUrl ?? role.userSignatureUrl;
                   const isSigned = Boolean(transition);
+                  const actionStatus = transition?.toStatus?.toUpperCase();
+                  const actionLabel =
+                    actionStatus === "REVIEW"
+                      ? "Reviewed"
+                      : actionStatus === "APPROVED"
+                        ? "Approved"
+                        : actionStatus === "REJECTED"
+                          ? "Rejected"
+                          : isSigned
+                            ? "Action Taken"
+                            : "Pending";
                   const isCurrentRole =
                     (session?.user?.role ?? "").toUpperCase() === role.code;
                   const canCurrentRoleAct =
@@ -978,8 +989,16 @@ export default function LicenseDetails({
                     <div key={role.code} className="rounded-lg border bg-white p-4 shadow-xs dark:bg-gray-900">
                       <div className="mb-3 flex items-center justify-between gap-2">
                         <p className="text-sm font-semibold">{role.label}</p>
-                        <Badge variant={isSigned ? "default" : "outline"}>
-                          {isSigned ? "Approved" : "Pending"}
+                        <Badge
+                          variant={
+                            actionStatus === "REJECTED"
+                              ? "destructive"
+                              : isSigned
+                                ? "default"
+                                : "outline"
+                          }
+                        >
+                          {actionLabel}
                         </Badge>
                       </div>
                       <div className="flex min-h-8 items-center justify-center rounded-md bg-gray-50 py-1 dark:bg-gray-800">
