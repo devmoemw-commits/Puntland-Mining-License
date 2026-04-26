@@ -354,27 +354,6 @@ export function ApprovalWorkflowsManager({
                   ))}
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="definitionPreview">Definition preview (JSON)</Label>
-                <Textarea
-                  id="definitionPreview"
-                  className="min-h-48 font-mono text-xs"
-                  value={JSON.stringify(
-                    {
-                      statuses: STATUS_OPTIONS,
-                      steps: steps.map((s) => ({
-                        stepNumber: s.stepNumber,
-                        from: s.fromStatus,
-                        to: s.toStatus,
-                        roles: s.roleCodes,
-                      })),
-                    },
-                    null,
-                    2,
-                  )}
-                  readOnly
-                />
-              </div>
               <div className="flex gap-2">
                 <Button type="submit" disabled={pending}>
                   {pending ? "Saving..." : editingId ? "Update" : "Create"}

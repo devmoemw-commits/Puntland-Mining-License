@@ -2,27 +2,38 @@
 
 import Link from "next/link"
 import { Plus } from "lucide-react"
+import { headers } from "next/headers"
 
 import { DataTable } from "./_components/data-table"
 import { columns, License } from "./column"
-import config from "@/lib/config/config"
 
 //fetch license data from api
 async function getLicenses(): Promise<License[]> {
-  const res = await fetch(`${config.env.apiEndpoint}/api/licenses`, {
-    method: 'GET',
-    credentials: 'include',
-    cache: 'no-cache'
-  })
-  if (!res.ok) {
-    throw new Error(`Failed to load licenses: ${res.status}`)
+  try {
+    const headerStore = await headers()
+    const host = headerStore.get("x-forwarded-host") ?? headerStore.get("host")
+    const protocol = headerStore.get("x-forwarded-proto") ?? "https"
+    const baseUrl = host ? `${protocol}://${host}` : "http://localhost:3000"
+
+    const res = await fetch(`${baseUrl}/api/licenses`, {
+      method: "GET",
+      cache: "no-store",
+    })
+    if (!res.ok) {
+      console.error("Failed to load licenses:", res.status, res.statusText)
+      return []
+    }
+    const contentType = res.headers.get("content-type") ?? ""
+    if (!contentType.includes("application/json")) {
+      console.error("Unexpected response content type for /api/licenses:", contentType)
+      return []
+    }
+    const data = await res.json()
+    return Array.isArray(data) ? data : []
+  } catch (error) {
+    console.error("Error loading licenses:", error)
+    return []
   }
-  const contentType = res.headers.get("content-type") ?? ""
-  if (!contentType.includes("application/json")) {
-    throw new Error(`Expected JSON but got ${contentType || "unknown content type"}`)
-  }
-  const data = await res.json()
-  return data;
 }
 
 export default async function LicensesPage() {
