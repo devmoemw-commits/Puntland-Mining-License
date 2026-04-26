@@ -1,23 +1,39 @@
-import config from "@/lib/config/config";
 import { TSample, columns } from "./columns"
 import { DataTable } from "./data-table"
+import { db } from "@/database/drizzle"
+import { sampleAnalysis } from "@/database/schema"
+import { Permissions } from "@/lib/permissions"
+import { requireActionPermission } from "@/lib/permissions-server"
 
-//fetch license data from api
+// fetch sample analysis data directly from DB
 async function getLicenses(): Promise<TSample[]> {
-  const res = await fetch(`${config.env.apiEndpoint}/api/samples`, {
-    method: 'GET',
-    credentials: 'include',
-    cache: 'no-cache'
-  })
-  if (!res.ok) {
-    throw new Error(`Failed to load samples: ${res.status}`)
+  const denied = await requireActionPermission(Permissions.SAMPLE_ANALYSIS_ACCESS)
+  if (denied) {
+    console.error("Access denied while loading samples:", denied)
+    return []
   }
-  const contentType = res.headers.get("content-type") ?? ""
-  if (!contentType.includes("application/json")) {
-    throw new Error(`Expected JSON but got ${contentType || "unknown content type"}`)
+
+  try {
+    const rows = await db.select().from(sampleAnalysis)
+    return rows.map((row) => ({
+      id: row.id,
+      ref_id: row.ref_id,
+      name: row.name,
+      passport_no: row.passport_no,
+      kilo_gram: `${row.amount?.toString() ?? "0"} ${row.unit ?? ""}`.trim(),
+      created_at:
+        row.created_at instanceof Date
+          ? row.created_at.toISOString()
+          : String(row.created_at ?? ""),
+      updated_at:
+        row.updated_at instanceof Date
+          ? row.updated_at.toISOString()
+          : String(row.updated_at ?? ""),
+    }))
+  } catch (error) {
+    console.error("Error loading samples:", error)
+    return []
   }
-  const data = await res.json()
-  return data;
 }
 
 export default async function Page() {
