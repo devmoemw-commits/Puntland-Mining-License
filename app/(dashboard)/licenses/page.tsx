@@ -14,6 +14,13 @@ async function getLicenses(): Promise<License[]> {
     credentials: 'include',
     cache: 'no-cache'
   })
+  if (!res.ok) {
+    throw new Error(`Failed to load licenses: ${res.status}`)
+  }
+  const contentType = res.headers.get("content-type") ?? ""
+  if (!contentType.includes("application/json")) {
+    throw new Error(`Expected JSON but got ${contentType || "unknown content type"}`)
+  }
   const data = await res.json()
   return data;
 }

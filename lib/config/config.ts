@@ -2,6 +2,14 @@ function normalizeBaseUrl(url: string): string {
   return url.trim().replace(/\/+$/, "");
 }
 
+function toOrigin(url: string): string {
+  try {
+    return new URL(url).origin;
+  } catch {
+    return normalizeBaseUrl(url);
+  }
+}
+
 function isLocalhostUrl(url: string): boolean {
   return /localhost|127\.0\.0\.1/i.test(url);
 }
@@ -13,7 +21,7 @@ function resolveApiEndpoint(): string {
     : undefined;
 
   if (configured?.trim()) {
-    const normalized = normalizeBaseUrl(configured);
+    const normalized = toOrigin(configured);
     // Safety: never use localhost in production if a Vercel domain exists.
     if (process.env.NODE_ENV === "production" && isLocalhostUrl(normalized) && vercelUrl) {
       return normalizeBaseUrl(vercelUrl);
