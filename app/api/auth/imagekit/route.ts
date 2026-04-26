@@ -8,8 +8,14 @@ const {
   },
 } = config;
 
-const imagekit = new ImageKit({ publicKey, privateKey, urlEndpoint });
-
 export async function GET() {
+  if (!publicKey || !privateKey || !urlEndpoint) {
+    return NextResponse.json(
+      { error: "ImageKit is not configured" },
+      { status: 500 },
+    );
+  }
+
+  const imagekit = new ImageKit({ publicKey, privateKey, urlEndpoint });
   return NextResponse.json(imagekit.getAuthenticationParameters());
 }
