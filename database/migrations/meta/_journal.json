@@ -1,0 +1,83 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1750739920726,
+      "tag": "0000_flaky_sharon_carter",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1750740000000,
+      "tag": "0001_permissions_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1750740000001,
+      "tag": "0002_system_config",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1750740000002,
+      "tag": "0003_system_config_rename_legacy_key",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1750740000003,
+      "tag": "0004_roles_table_and_varchar_roles",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1750740000004,
+      "tag": "0005_user_signature_license_signed_by",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1750740000005,
+      "tag": "0006_user_permissions",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1760000000000,
+      "tag": "0007_license_review_workflow",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1760000001000,
+      "tag": "0008_approval_workflows",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1760000002000,
+      "tag": "0009_approval_workflow_module",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1760000003000,
+      "tag": "0010_license_workflow_runtime",
+      "breakpoints": true
+    }
+  ]
+}
