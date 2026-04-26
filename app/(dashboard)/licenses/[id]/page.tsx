@@ -297,7 +297,10 @@ async function getLicenseWorkflowByLicenseId(
       createdAt: toIso(row.transition.createdAt),
       actedByName: row.actorName ?? null,
       actedByRole: row.actorRole ?? null,
-      actedBySignatureUrl: row.actorSignatureUrl ?? null,
+      actedBySignatureUrl:
+        row.transition.actedBySignatureUrl ??
+        row.actorSignatureUrl ??
+        null,
     })),
   };
 }

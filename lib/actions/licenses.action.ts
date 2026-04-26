@@ -351,18 +351,17 @@ export const UpdateLicenseStatus = actionClient
           }
         }
 
-        if (status === "APPROVED") {
-          const [actor] = await db
-            .select({ signatureImageUrl: users.signatureImageUrl })
-            .from(users)
-            .where(eq(users.id, session.user.id))
-            .limit(1);
-          if (!actor?.signatureImageUrl) {
-            return {
-              error:
-                "You must upload your signature in profile before approving a license.",
-            };
-          }
+        const [actor] = await db
+          .select({ signatureImageUrl: users.signatureImageUrl })
+          .from(users)
+          .where(eq(users.id, session.user.id))
+          .limit(1);
+
+        if (status === "APPROVED" && !actor?.signatureImageUrl) {
+          return {
+            error:
+              "You must upload your signature in profile before approving a license.",
+          };
         }
 
         // Neon HTTP driver does not support interactive transactions.
@@ -396,6 +395,7 @@ export const UpdateLicenseStatus = actionClient
           fromStatus: current.status,
           toStatus: status,
           actedByUserId: session?.user?.id ?? null,
+          actedBySignatureUrl: actor?.signatureImageUrl ?? null,
           comment: comment ?? null,
         });
       } else {

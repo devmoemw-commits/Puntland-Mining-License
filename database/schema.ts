@@ -149,6 +149,8 @@ export const licenseWorkflowTransitions = pgTable("license_workflow_transitions"
   fromStatus: licenseStatusEnum("from_status").notNull(),
   toStatus: licenseStatusEnum("to_status").notNull(),
   actedByUserId: uuid("acted_by_user_id").references(() => users.id, { onDelete: "set null" }),
+  /** Snapshot of signer signature URL at action time to preserve immutable workflow history. */
+  actedBySignatureUrl: text("acted_by_signature_url"),
   comment: text("comment"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
