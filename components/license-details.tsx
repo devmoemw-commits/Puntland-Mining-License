@@ -920,58 +920,65 @@ export default function LicenseDetails({
                 <h2 className="text-xl font-semibold">Approval Workflow</h2>
               </div>
 
-              <div className="mb-4 text-center">
-                <p className="font-semibold text-lg">Approvals</p>
-                <p className="text-xs text-gray-500">
-                  {workflow
-                    ? `${workflow.workflowName} (${workflow.workflowCode}) • Step ${workflow.currentStepNumber} • ${workflow.isCompleted ? "Completed" : "In Progress"}`
-                    : "Workflow is not attached yet"}
-                </p>
-              </div>
-
-              <div className="rounded-md border overflow-hidden">
-                <div
-                  className="grid"
-                  style={{ gridTemplateColumns: `repeat(${Math.max(1, approvalRoles.length)}, minmax(0, 1fr))` }}
-                >
-                  {approvalRoles.map((role) => {
-                    const transition = workflow?.transitions.find(
-                      (item) => item.actedByRole?.toUpperCase() === role.code,
-                    );
-
-                    return (
-                      <div key={role.code} className="p-4 border-r last:border-r-0 text-center">
-                        <p className="font-semibold text-sm mb-3">{role.label}</p>
-                        <div className="h-8 flex items-center justify-center text-gray-700">
-                          {transition?.actedBySignatureUrl || role.userSignatureUrl ? (
-                            <Image
-                              src={transition?.actedBySignatureUrl ?? role.userSignatureUrl ?? "/placeholder.svg"}
-                              alt={`${transition?.actedByName ?? role.userName ?? role.label} signature`}
-                              width={88}
-                              height={28}
-                              className="object-contain h-7 w-auto"
-                            />
-                          ) : transition?.actedByName ? (
-                            <span className="italic tracking-wide">{transition.actedByName}</span>
-                          ) : (
-                            <span className="text-gray-300">--------------------</span>
-                          )}
-                        </div>
-                        <p className="text-sm font-medium mt-2">
-                          {transition?.actedByName ?? role.userName ?? role.label}
-                        </p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          {transition ? formatDate(transition.createdAt, "dd MMMM, yyyy") : "--"}
-                        </p>
-                      </div>
-                    );
-                  })}
+              <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/20 px-4 py-3">
+                <div>
+                  <p className="font-semibold text-base">Approvals</p>
+                  <p className="text-xs text-gray-500">
+                    {workflow
+                      ? `${workflow.workflowName} (${workflow.workflowCode})`
+                      : "Workflow is not attached yet"}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 text-xs">
+                  <Badge variant="outline">Step {workflow?.currentStepNumber ?? 0}</Badge>
+                  <Badge variant={workflow?.isCompleted ? "default" : "secondary"}>
+                    {workflow?.isCompleted ? "Completed" : "In Progress"}
+                  </Badge>
                 </div>
               </div>
 
-              <div className="mt-4 flex items-center justify-between gap-3 flex-wrap">
-                <p className="text-sm text-gray-600">
-                  You can approve this as{" "}
+              <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                {approvalRoles.map((role) => {
+                  const transition = workflow?.transitions.find(
+                    (item) => item.actedByRole?.toUpperCase() === role.code,
+                  );
+                  const actorName = transition?.actedByName ?? role.userName ?? "Unassigned";
+                  const actorSignature = transition?.actedBySignatureUrl ?? role.userSignatureUrl;
+                  const isSigned = Boolean(transition);
+
+                  return (
+                    <div key={role.code} className="rounded-lg border bg-white p-4 shadow-xs dark:bg-gray-900">
+                      <div className="mb-3 flex items-center justify-between gap-2">
+                        <p className="text-sm font-semibold">{role.label}</p>
+                        <Badge variant={isSigned ? "default" : "outline"}>
+                          {isSigned ? "Approved" : "Pending"}
+                        </Badge>
+                      </div>
+                      <div className="flex min-h-8 items-center justify-center rounded-md bg-gray-50 py-1 dark:bg-gray-800">
+                        {actorSignature ? (
+                          <Image
+                            src={actorSignature}
+                            alt={`${actorName} signature`}
+                            width={110}
+                            height={32}
+                            className="h-8 w-auto object-contain"
+                          />
+                        ) : (
+                          <span className="text-gray-300">--------------------</span>
+                        )}
+                      </div>
+                      <p className="mt-3 text-sm font-medium">{actorName}</p>
+                      <p className="text-xs text-gray-500">
+                        {transition ? formatDate(transition.createdAt, "dd MMMM, yyyy") : "--"}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-3">
+                <p className="text-sm text-gray-700 dark:text-gray-300">
+                  You are acting as{" "}
                   <span className="font-semibold">
                     {session?.user?.role ? roleLabel(session.user.role) : "current role"}
                   </span>
