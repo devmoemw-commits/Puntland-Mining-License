@@ -26,6 +26,7 @@ import {
   FileText,
   Globe,
   CheckCircle,
+  XCircle,
   Clock,
   Download,
   Printer,
@@ -945,6 +946,8 @@ export default function LicenseDetails({
                   const actorName = transition?.actedByName ?? role.userName ?? "Unassigned";
                   const actorSignature = transition?.actedBySignatureUrl ?? role.userSignatureUrl;
                   const isSigned = Boolean(transition);
+                  const isCurrentRole =
+                    (session?.user?.role ?? "").toUpperCase() === role.code;
 
                   return (
                     <div key={role.code} className="rounded-lg border bg-white p-4 shadow-xs dark:bg-gray-900">
@@ -971,44 +974,34 @@ export default function LicenseDetails({
                       <p className="text-xs text-gray-500">
                         {transition ? formatDate(transition.createdAt, "dd MMMM, yyyy") : "--"}
                       </p>
+
+                      {isCurrentRole && !workflow?.isCompleted ? (
+                        <div className="mt-4 flex items-center justify-end gap-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            disabled={isWorkflowPending}
+                            onClick={() => handleWorkflowAction("REJECTED", "rejected")}
+                            className="bg-red-600 hover:bg-red-700 text-white"
+                          >
+                            <XCircle className="h-4 w-4 mr-1" />
+                            Reject
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            disabled={isWorkflowPending}
+                            onClick={() => handleWorkflowAction("APPROVED", "approved")}
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                          >
+                            <CheckCircle className="h-4 w-4 mr-1" />
+                            Approve
+                          </Button>
+                        </div>
+                      ) : null}
                     </div>
                   );
                 })}
-              </div>
-
-              <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-3">
-                <p className="text-sm text-gray-700 dark:text-gray-300">
-                  You are acting as{" "}
-                  <span className="font-semibold">
-                    {session?.user?.role ? roleLabel(session.user.role) : "current role"}
-                  </span>
-                </p>
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    disabled={isWorkflowPending}
-                    onClick={() => handleWorkflowAction("REJECTED", "rejected")}
-                    className="bg-red-600 hover:bg-red-700 text-white"
-                  >
-                    Reject
-                  </Button>
-                  <Button
-                    type="button"
-                    disabled={isWorkflowPending}
-                    onClick={() => handleWorkflowAction("REVIEW", "returned")}
-                    className="bg-orange-600 hover:bg-orange-700 text-white"
-                  >
-                    Return
-                  </Button>
-                  <Button
-                    type="button"
-                    disabled={isWorkflowPending}
-                    onClick={() => handleWorkflowAction("APPROVED", "approved")}
-                    className="bg-green-600 hover:bg-green-700 text-white"
-                  >
-                    Approve
-                  </Button>
-                </div>
               </div>
             </CardContent>
           </Card>
