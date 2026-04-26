@@ -1,4 +1,5 @@
 "use server"
+import config from "@/lib/config/config"
 
 interface LicenseData {
   id: string
@@ -36,10 +37,7 @@ export async function verifyLicense(formData: FormData): Promise<VerificationRes
   }
 
   try {
-    // Call your local API endpoint
-    const baseUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000"
-
-    const apiUrl = `${baseUrl}/api/verify-license?ref_id=${encodeURIComponent(licenseNumber)}`
+    const apiUrl = `${config.env.apiEndpoint}/api/verify-license?ref_id=${encodeURIComponent(licenseNumber)}`
 
     const response = await fetch(apiUrl, {
       method: "GET",

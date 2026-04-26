@@ -8,6 +8,8 @@ import { users } from "@/database/schema";
 import { usersAuthLogin } from "@/lib/data/users-select";
 import { eq } from "drizzle-orm";
 
+const authSecret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: DrizzleAdapter(db),
   session: {
@@ -17,7 +19,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   jwt: {
   maxAge: 60 * 60,
 },
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: authSecret,
   providers: [
     CredentialsProvider({
       async authorize(credentials) {

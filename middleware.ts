@@ -6,10 +6,20 @@ import {
   canAccessRouteByPermissions,
 } from "@/lib/permissions"
 
+const authSecret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET
+
 export async function middleware(request: NextRequest) {
+  if (!authSecret) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("Missing AUTH_SECRET/NEXTAUTH_SECRET for authentication middleware")
+    }
+    // In local dev, avoid crashing hard when secret is not configured yet.
+    return NextResponse.next()
+  }
+
   const token = await getToken({
     req: request,
-    secret: process.env.NEXTAUTH_SECRET,
+    secret: authSecret,
     secureCookie: request.nextUrl.protocol === "https:",
   })
 
