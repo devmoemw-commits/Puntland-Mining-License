@@ -9,7 +9,7 @@ import {
   licenses,
   users,
 } from "@/database/schema";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import type { License, Location } from "@/types";
 import LicenseDetails from "@/components/license-details";
 import { getCertificateAssets } from "@/lib/data/get-system-config";
@@ -112,7 +112,7 @@ async function getLicenseById(id: string): Promise<License | null> {
 async function getLicenseWorkflowByLicenseId(
   licenseId: string,
 ): Promise<LicenseWorkflowView> {
-  const [instanceRow] = await db
+  let [instanceRow] = await db
     .select({
       instance: licenseWorkflowInstances,
       workflow: approvalWorkflows,
@@ -124,6 +124,44 @@ async function getLicenseWorkflowByLicenseId(
     )
     .where(eq(licenseWorkflowInstances.licenseId, licenseId))
     .limit(1);
+
+  if (!instanceRow) {
+    const [activeWorkflow] = await db
+      .select()
+      .from(approvalWorkflows)
+      .where(
+        and(
+          eq(approvalWorkflows.module, "LICENSE"),
+          eq(approvalWorkflows.isActive, true),
+        ),
+      )
+      .orderBy(desc(approvalWorkflows.updatedAt))
+      .limit(1);
+
+    if (activeWorkflow) {
+      try {
+        await db.insert(licenseWorkflowInstances).values({
+          licenseId,
+          workflowId: activeWorkflow.id,
+        });
+      } catch (error) {
+        console.error("Failed to backfill workflow instance:", error);
+      }
+
+      [instanceRow] = await db
+        .select({
+          instance: licenseWorkflowInstances,
+          workflow: approvalWorkflows,
+        })
+        .from(licenseWorkflowInstances)
+        .innerJoin(
+          approvalWorkflows,
+          eq(licenseWorkflowInstances.workflowId, approvalWorkflows.id),
+        )
+        .where(eq(licenseWorkflowInstances.licenseId, licenseId))
+        .limit(1);
+    }
+  }
 
   if (!instanceRow) return null;
 
