@@ -125,6 +125,7 @@ export interface TUsers {
   name: string
   email: string
   role: string
+  signatureImageUrl?: string | null
   createdAt: string
   updatedAt: string
   emailVerified: boolean

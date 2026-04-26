@@ -32,6 +32,7 @@ import { updateUser } from "@/lib/actions/auth.action";
 import type { TUsers } from "@/types";
 import type { RoleRow } from "@/lib/data/get-roles";
 import type { PermissionCatalogItem } from "@/components/users/role-permissions-matrix";
+import { ProfileSignatureUpload } from "@/components/profile/profile-signature-upload";
 import type { z } from "zod";
 
 type UpdateUserFormData = z.infer<typeof updateUserSchema>;
@@ -248,6 +249,17 @@ export default function UserUpdateForm({
                 </label>
               ))}
             </div>
+          </div>
+
+          <div className="space-y-3">
+            <Label>Certificate signature</Label>
+            <p className="text-sm text-muted-foreground">
+              This signature is used when this user approves and signs licenses.
+            </p>
+            <ProfileSignatureUpload
+              userId={user.id}
+              initialUrl={user.signatureImageUrl ?? ""}
+            />
           </div>
 
           <FormField
