@@ -365,39 +365,38 @@ export const UpdateLicenseStatus = actionClient
           }
         }
 
-        await db.transaction(async (tx) => {
-          await tx
-            .update(licenses)
-            .set({
-              status,
-              review_comment:
-                status === "REVIEW" || status === "REJECTED"
-                  ? comment ?? null
-                  : null,
-              signature: status === "APPROVED" ? true : false,
-              signed_by_user_id: status === "APPROVED" ? session.user.id : null,
-              updated_at: new Date(),
-            })
-            .where(eq(licenses.id, id));
+        // Neon HTTP driver does not support interactive transactions.
+        await db
+          .update(licenses)
+          .set({
+            status,
+            review_comment:
+              status === "REVIEW" || status === "REJECTED"
+                ? comment ?? null
+                : null,
+            signature: status === "APPROVED" ? true : false,
+            signed_by_user_id: status === "APPROVED" ? session.user.id : null,
+            updated_at: new Date(),
+          })
+          .where(eq(licenses.id, id));
 
-          await tx
-            .update(licenseWorkflowInstances)
-            .set({
-              currentStepNumber: matchingStep.stepNumber,
-              isCompleted: status === "APPROVED" || status === "REJECTED",
-              updatedAt: new Date(),
-            })
-            .where(eq(licenseWorkflowInstances.id, workflowContext.instance.id));
+        await db
+          .update(licenseWorkflowInstances)
+          .set({
+            currentStepNumber: matchingStep.stepNumber,
+            isCompleted: status === "APPROVED" || status === "REJECTED",
+            updatedAt: new Date(),
+          })
+          .where(eq(licenseWorkflowInstances.id, workflowContext.instance.id));
 
-          await tx.insert(licenseWorkflowTransitions).values({
-            instanceId: workflowContext.instance.id,
-            licenseId: id,
-            stepNumber: matchingStep.stepNumber,
-            fromStatus: current.status,
-            toStatus: status,
-            actedByUserId: session?.user?.id ?? null,
-            comment: comment ?? null,
-          });
+        await db.insert(licenseWorkflowTransitions).values({
+          instanceId: workflowContext.instance.id,
+          licenseId: id,
+          stepNumber: matchingStep.stepNumber,
+          fromStatus: current.status,
+          toStatus: status,
+          actedByUserId: session?.user?.id ?? null,
+          comment: comment ?? null,
         });
       } else {
         const allowedTransitions: Record<
