@@ -1,21 +1,57 @@
-import config from "@/lib/config/config";
 import ImageKit from "imagekit";
 import { NextResponse } from "next/server";
 
-const {
-  env: {
-    imagekit: { publicKey, privateKey, urlEndpoint },
-  },
-} = config;
+function firstNonEmpty(...values: Array<string | undefined>): string {
+  for (const value of values) {
+    const trimmed = value?.trim();
+    if (trimmed) return trimmed;
+  }
+  return "";
+}
 
 export async function GET() {
-  if (!publicKey || !privateKey || !urlEndpoint) {
+  const publicKey = firstNonEmpty(
+    process.env.NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY,
+    process.env.IMAGEKIT_PUBLIC_KEY,
+  );
+  const privateKey = firstNonEmpty(process.env.IMAGEKIT_PRIVATE_KEY);
+  const urlEndpoint = firstNonEmpty(
+    process.env.NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT,
+    process.env.IMAGEKIT_URL_ENDPOINT,
+  );
+
+  const missing: string[] = [];
+  if (!publicKey) {
+    missing.push("NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY or IMAGEKIT_PUBLIC_KEY");
+  }
+  if (!privateKey) {
+    missing.push("IMAGEKIT_PRIVATE_KEY");
+  }
+  if (!urlEndpoint) {
+    missing.push("NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT or IMAGEKIT_URL_ENDPOINT");
+  }
+
+  if (missing.length > 0) {
     return NextResponse.json(
-      { error: "ImageKit is not configured" },
+      {
+        error: "ImageKit is not configured",
+        missing,
+      },
       { status: 500 },
     );
   }
 
-  const imagekit = new ImageKit({ publicKey, privateKey, urlEndpoint });
-  return NextResponse.json(imagekit.getAuthenticationParameters());
+  try {
+    const imagekit = new ImageKit({ publicKey, privateKey, urlEndpoint });
+    return NextResponse.json(imagekit.getAuthenticationParameters());
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return NextResponse.json(
+      {
+        error: "ImageKit initialization failed",
+        detail: message,
+      },
+      { status: 500 },
+    );
+  }
 }
