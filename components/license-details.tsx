@@ -982,7 +982,6 @@ export default function LicenseDetails({
                           <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
                             {role.label}
                           </p>
-                          <p className="text-xs text-slate-500">{role.code}</p>
                         </div>
                         <Badge
                           className="rounded-full px-2.5 py-0.5 text-[11px]"
