@@ -131,6 +131,8 @@ export const licenseWorkflowInstances = pgTable("license_workflow_instances", {
   workflowId: uuid("workflow_id")
     .notNull()
     .references(() => approvalWorkflows.id, { onDelete: "restrict" }),
+  /** Snapshot of workflow definition at license creation time to avoid retroactive step changes. */
+  definitionSnapshot: text("definition_snapshot"),
   currentStepNumber: integer("current_step_number").default(0).notNull(),
   isCompleted: boolean("is_completed").default(false).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),

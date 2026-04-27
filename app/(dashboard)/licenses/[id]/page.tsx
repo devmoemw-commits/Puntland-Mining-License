@@ -157,6 +157,7 @@ async function getLicenseWorkflowByLicenseId(
         await db.insert(licenseWorkflowInstances).values({
           licenseId,
           workflowId: activeWorkflow.id,
+          definitionSnapshot: activeWorkflow.definition,
         });
       } catch (error) {
         console.error("Failed to backfill workflow instance:", error);
@@ -203,7 +204,10 @@ async function getLicenseWorkflowByLicenseId(
     allowedRoles: string[];
   } | null = null;
   try {
-    const definition = JSON.parse(instanceRow.workflow.definition) as {
+    const definitionSource =
+      instanceRow.instance.definitionSnapshot ??
+      instanceRow.workflow.definition;
+    const definition = JSON.parse(definitionSource) as {
       steps?: Array<{
         stepNumber?: number;
         from?: string;
@@ -285,7 +289,11 @@ async function getLicenseWorkflowByLicenseId(
     workflowName: instanceRow.workflow.name,
     workflowCode: instanceRow.workflow.code,
     currentStepNumber: instanceRow.instance.currentStepNumber,
-    isCompleted: instanceRow.instance.isCompleted,
+    isCompleted:
+      instanceRow.instance.isCompleted ||
+      (!instanceRow.instance.definitionSnapshot &&
+        instanceRow.instance.currentStepNumber > 0 &&
+        instanceRow.instance.createdAt < instanceRow.workflow.updatedAt),
     nextStep,
     approvalRoles,
     transitions: transitionRows.map((row) => ({

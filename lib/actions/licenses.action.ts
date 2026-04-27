@@ -105,6 +105,7 @@ async function ensureLicenseWorkflowInstance(licenseId: string) {
       .values({
         licenseId,
         workflowId: workflow.id,
+        definitionSnapshot: workflow.definition,
       })
       .returning();
     instance = created;
@@ -217,6 +218,7 @@ export const RegisterLicense = actionClient.schema(licensesSchema).action(
           await db.insert(licenseWorkflowInstances).values({
             licenseId: createdLicense.id,
             workflowId: activeWorkflow.id,
+            definitionSnapshot: activeWorkflow.definition,
           });
         } catch (error) {
           // Do not fail registration if workflow instance already exists or cannot be initialized.
@@ -324,9 +326,23 @@ export const UpdateLicenseStatus = actionClient
       const workflowContext = await ensureLicenseWorkflowInstance(id);
 
       if (workflowContext) {
-        const parsedDefinition = parseWorkflowDefinition(workflowContext.workflow.definition);
+        const definitionSource =
+          workflowContext.instance.definitionSnapshot ??
+          workflowContext.workflow.definition;
+        const parsedDefinition = parseWorkflowDefinition(definitionSource);
         if (!parsedDefinition) {
           return { error: "Workflow definition is invalid. Please fix it in settings." };
+        }
+
+        const isLegacyInstanceFrozen =
+          !workflowContext.instance.definitionSnapshot &&
+          workflowContext.instance.currentStepNumber > 0 &&
+          workflowContext.instance.createdAt < workflowContext.workflow.updatedAt;
+        if (isLegacyInstanceFrozen) {
+          return {
+            error:
+              "This license follows an older workflow version and cannot be progressed with newly added steps.",
+          };
         }
 
         const matchingStep = parsedDefinition.steps.find(

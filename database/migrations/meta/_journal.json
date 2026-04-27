@@ -92,6 +92,13 @@
       "when": 1760000005000,
       "tag": "0012_transition_actor_name_snapshot",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1760000006000,
+      "tag": "0013_license_workflow_definition_snapshot",
+      "breakpoints": true
     }
   ]
 }
