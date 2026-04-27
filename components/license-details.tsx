@@ -997,7 +997,7 @@ export default function LicenseDetails({
                           {actionLabel}
                         </Badge>
                       </div>
-                      <div className="flex min-h-10 items-center justify-center rounded-lg border border-dashed border-slate-200 bg-white py-1 dark:border-slate-700 dark:bg-slate-800/40">
+                      <div className="flex min-h-10 items-center justify-start rounded-lg border border-dashed border-slate-200 bg-white px-3 py-1 dark:border-slate-700 dark:bg-slate-800/40">
                         {actorSignature ? (
                           <Image
                             src={actorSignature}
@@ -1030,7 +1030,7 @@ export default function LicenseDetails({
                               />
                             </div>
                           ) : null}
-                          <div className="flex items-center justify-end gap-2">
+                          <div className="flex items-center justify-start gap-2">
                             <Button
                               type="button"
                               size="sm"

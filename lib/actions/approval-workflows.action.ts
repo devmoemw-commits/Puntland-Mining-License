@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { db } from "@/database/drizzle";
@@ -39,6 +39,15 @@ export const createApprovalWorkflow = actionClient
     const denied = await requireActionPermission(Permissions.APPROVAL_WORKFLOW_CREATE);
     if (denied) return { error: denied };
 
+    const [existingByCode] = await db
+      .select({ id: approvalWorkflows.id })
+      .from(approvalWorkflows)
+      .where(eq(approvalWorkflows.code, parsedInput.code))
+      .limit(1);
+    if (existingByCode) {
+      return { error: `Workflow code "${parsedInput.code}" already exists. Use a different code.` };
+    }
+
     try {
       await db.insert(approvalWorkflows).values({
         module: parsedInput.module,
@@ -50,10 +59,18 @@ export const createApprovalWorkflow = actionClient
       });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Failed to create approval workflow";
-      if (String(msg).includes("unique") || String(msg).includes("duplicate")) {
+      const causeCode =
+        e && typeof e === "object" && "cause" in e
+          ? (e as { cause?: { code?: string } }).cause?.code
+          : undefined;
+      if (
+        causeCode === "23505" ||
+        String(msg).toLowerCase().includes("unique") ||
+        String(msg).toLowerCase().includes("duplicate")
+      ) {
         return { error: "A workflow with this code already exists" };
       }
-      return { error: String(msg) };
+      return { error: "Failed to create approval workflow. Please check your inputs and try again." };
     }
 
     revalidatePath("/settings/approval-workflows");
@@ -71,18 +88,43 @@ export const updateApprovalWorkflow = actionClient
     if (denied) return { error: denied };
 
     const { id, ...rest } = parsedInput;
-    await db
-      .update(approvalWorkflows)
-      .set({
-        module: rest.module,
-        code: rest.code,
-        name: rest.name.trim(),
-        description: rest.description?.trim() || null,
-        definition: rest.definition.trim(),
-        isActive: rest.isActive ?? true,
-        updatedAt: new Date(),
-      })
-      .where(eq(approvalWorkflows.id, id));
+    const [existingByCode] = await db
+      .select({ id: approvalWorkflows.id })
+      .from(approvalWorkflows)
+      .where(and(eq(approvalWorkflows.code, rest.code), ne(approvalWorkflows.id, id)))
+      .limit(1);
+    if (existingByCode) {
+      return { error: `Workflow code "${rest.code}" already exists. Use a different code.` };
+    }
+
+    try {
+      await db
+        .update(approvalWorkflows)
+        .set({
+          module: rest.module,
+          code: rest.code,
+          name: rest.name.trim(),
+          description: rest.description?.trim() || null,
+          definition: rest.definition.trim(),
+          isActive: rest.isActive ?? true,
+          updatedAt: new Date(),
+        })
+        .where(eq(approvalWorkflows.id, id));
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Failed to update approval workflow";
+      const causeCode =
+        e && typeof e === "object" && "cause" in e
+          ? (e as { cause?: { code?: string } }).cause?.code
+          : undefined;
+      if (
+        causeCode === "23505" ||
+        String(msg).toLowerCase().includes("unique") ||
+        String(msg).toLowerCase().includes("duplicate")
+      ) {
+        return { error: "A workflow with this code already exists" };
+      }
+      return { error: "Failed to update approval workflow. Please check your inputs and try again." };
+    }
 
     revalidatePath("/settings/approval-workflows");
     return { success: true as const };
