@@ -930,24 +930,7 @@ export default function LicenseDetails({
                 <h2 className="text-xl font-semibold">Approval Workflow</h2>
               </div>
 
-              <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/20 px-4 py-3">
-                <div>
-                  <p className="font-semibold text-base">Approvals</p>
-                  <p className="text-xs text-gray-500">
-                    {workflow
-                      ? `${workflow.workflowName} (${workflow.workflowCode})`
-                      : "Workflow is not attached yet"}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 text-xs">
-                  <Badge variant="outline">Step {workflow?.currentStepNumber ?? 0}</Badge>
-                  <Badge variant={workflow?.isCompleted ? "default" : "secondary"}>
-                    {workflow?.isCompleted ? "Completed" : "In Progress"}
-                  </Badge>
-                </div>
-              </div>
-
-              <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {approvalRoles.map((role) => {
                   const transition = workflow?.transitions.find(
                     (item) => item.actedByRole?.toUpperCase() === role.code,
@@ -990,10 +973,19 @@ export default function LicenseDetails({
                           : "Approve";
 
                   return (
-                    <div key={role.code} className="rounded-lg border bg-white p-4 shadow-xs dark:bg-gray-900">
-                      <div className="mb-3 flex items-center justify-between gap-2">
-                        <p className="text-sm font-semibold">{role.label}</p>
+                    <div
+                      key={role.code}
+                      className="rounded-xl border border-slate-200/80 bg-gradient-to-b from-white to-slate-50/40 p-4 shadow-sm transition-all hover:shadow-md dark:border-slate-800 dark:from-slate-900 dark:to-slate-900"
+                    >
+                      <div className="mb-3 flex items-start justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                            {role.label}
+                          </p>
+                          <p className="text-xs text-slate-500">{role.code}</p>
+                        </div>
                         <Badge
+                          className="rounded-full px-2.5 py-0.5 text-[11px]"
                           variant={
                             actionStatus === "REJECTED"
                               ? "destructive"
@@ -1005,26 +997,28 @@ export default function LicenseDetails({
                           {actionLabel}
                         </Badge>
                       </div>
-                      <div className="flex min-h-8 items-center justify-center rounded-md bg-gray-50 py-1 dark:bg-gray-800">
+                      <div className="flex min-h-10 items-center justify-center rounded-lg border border-dashed border-slate-200 bg-white py-1 dark:border-slate-700 dark:bg-slate-800/40">
                         {actorSignature ? (
                           <Image
                             src={actorSignature}
                             alt={`${actorName} signature`}
                             width={110}
                             height={32}
-                            className="h-8 w-auto object-contain"
+                            className="h-8 w-auto object-contain opacity-90"
                           />
                         ) : (
-                          <span className="text-gray-300">--------------------</span>
+                          <span className="text-slate-300">No signature yet</span>
                         )}
                       </div>
-                      <p className="mt-3 text-sm font-medium">{actorName}</p>
-                      <p className="text-xs text-gray-500">
+                      <p className="mt-3 text-sm font-medium text-slate-800 dark:text-slate-100">
+                        {actorName}
+                      </p>
+                      <p className="text-xs text-slate-500">
                         {transition ? formatDate(transition.createdAt, "dd MMMM, yyyy") : "--"}
                       </p>
 
                       {canCurrentRoleAct ? (
-                        <div className="mt-4 flex flex-col gap-2">
+                        <div className="mt-4 space-y-2 border-t border-slate-200/70 pt-3 dark:border-slate-800">
                           {requiresReviewComment ? (
                             <div className="w-full">
                               <Textarea
@@ -1058,7 +1052,7 @@ export default function LicenseDetails({
                                   primaryActionLabel.toLowerCase() as "approved" | "returned" | "rejected",
                                 )
                               }
-                              className="bg-green-600 hover:bg-green-700 text-white"
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white"
                             >
                               <CheckCircle className="h-4 w-4 mr-1" />
                               {primaryActionLabel}
@@ -1070,6 +1064,11 @@ export default function LicenseDetails({
                   );
                 })}
               </div>
+              {approvalRoles.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50/70 px-4 py-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/40">
+                  No approval roles configured in this workflow yet.
+                </div>
+              ) : null}
             </CardContent>
           </Card>
         </div>
