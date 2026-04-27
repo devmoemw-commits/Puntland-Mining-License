@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Eye, MoreHorizontal, Pencil, Check, X } from "lucide-react"
+import { Eye, MoreHorizontal, Pencil, X } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,7 +32,7 @@ export function LicenseActionsCell({ license }: LicenseActionsCellProps) {
   const hasPermission = (permission: string) => permissionCodes.includes(permission)
 
   // Handle status update
-  const handleStatusUpdate = async (newStatus: "REVIEW" | "APPROVED" | "REJECTED") => {
+  const handleStatusUpdate = async (newStatus: "REVIEW" | "REJECTED") => {
     try {
       // Close dropdown when performing action
       setIsDropdownOpen(false)
@@ -113,15 +113,6 @@ export function LicenseActionsCell({ license }: LicenseActionsCellProps) {
                 >
                   <Eye className="mr-2 h-4 w-4" />
                   Send To Review
-                </DropdownMenuItem>
-              )}
-              {license.status === "REVIEW" && (
-                <DropdownMenuItem
-                  onClick={() => handleStatusUpdate("APPROVED")}
-                  className="text-green-600 focus:text-green-600 focus:bg-green-50 dark:focus:bg-green-950"
-                >
-                  <Check className="mr-2 h-4 w-4" />
-                  Approve
                 </DropdownMenuItem>
               )}
               {license.status === "REVIEW" && (
