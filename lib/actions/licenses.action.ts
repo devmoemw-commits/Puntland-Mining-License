@@ -352,15 +352,25 @@ export const UpdateLicenseStatus = actionClient
         }
 
         const [actor] = await db
-          .select({ signatureImageUrl: users.signatureImageUrl })
+          .select({
+            signatureImageUrl: users.signatureImageUrl,
+            name: users.name,
+          })
           .from(users)
           .where(eq(users.id, session.user.id))
           .limit(1);
 
-        if (status === "APPROVED" && !actor?.signatureImageUrl) {
+        if ((status === "REVIEW" || status === "APPROVED") && !actor?.signatureImageUrl) {
           return {
             error:
-              "You must upload your signature in profile before approving a license.",
+              "You must upload your signature in profile before taking this action.",
+          };
+        }
+
+        if ((status === "REVIEW" || status === "APPROVED") && !actor?.name?.trim()) {
+          return {
+            error:
+              "Please set your full name in profile before taking this action.",
           };
         }
 
@@ -395,7 +405,14 @@ export const UpdateLicenseStatus = actionClient
           fromStatus: current.status,
           toStatus: status,
           actedByUserId: session?.user?.id ?? null,
-          actedBySignatureUrl: actor?.signatureImageUrl ?? null,
+          actedByName:
+            status === "REVIEW" || status === "APPROVED"
+              ? (actor?.name?.trim() ?? null)
+              : null,
+          actedBySignatureUrl:
+            status === "REVIEW" || status === "APPROVED"
+              ? (actor?.signatureImageUrl ?? null)
+              : null,
           comment: comment ?? null,
         });
       } else {

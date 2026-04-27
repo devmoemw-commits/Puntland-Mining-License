@@ -85,6 +85,13 @@
       "when": 1760000004000,
       "tag": "0011_transition_signature_snapshot",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1760000005000,
+      "tag": "0012_transition_actor_name_snapshot",
+      "breakpoints": true
     }
   ]
 }

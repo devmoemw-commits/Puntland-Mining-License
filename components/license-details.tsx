@@ -953,9 +953,13 @@ export default function LicenseDetails({
                     (item) => item.actedByRole?.toUpperCase() === role.code,
                   );
                   const actorName = transition?.actedByName ?? role.userName ?? "Unassigned";
-                  const actorSignature = transition?.actedBySignatureUrl ?? role.userSignatureUrl;
-                  const isSigned = Boolean(transition);
                   const actionStatus = transition?.toStatus?.toUpperCase();
+                  const shouldRenderSignature =
+                    actionStatus === "REVIEW" || actionStatus === "APPROVED";
+                  const actorSignature = shouldRenderSignature
+                    ? (transition?.actedBySignatureUrl ?? null)
+                    : null;
+                  const isSigned = Boolean(transition);
                   const actionLabel =
                     actionStatus === "REVIEW"
                       ? "Reviewed"
