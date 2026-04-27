@@ -369,20 +369,20 @@ export default function LicenseDetails({
                       : "Not Available"}
                   </DialogTrigger>
 
-                  <DialogContent className="min-w-fit overflow-y-auto bg-white dark:bg-gray-800">
+                  <DialogContent className="w-[96vw] max-w-[1100px] max-h-[94vh] overflow-hidden bg-white p-0 dark:bg-gray-800">
                     <DialogHeader>
-                      <DialogTitle>
-                        <div className="flex justify-between items-center capitalize">
-                          <div>
+                      <DialogTitle className="border-b px-4 py-3 sm:px-6">
+                        <div className="flex flex-wrap justify-between items-center gap-3 capitalize">
+                          <div className="min-w-0">
                             {license.company_name} -{" "}
-                            <span className="text-gray-500 text-sm">
+                            <span className="text-gray-500 text-sm break-all">
                               {license.license_ref_id}
                             </span>
                           </div>
 
                           {/* Signature Toggle - only for admin users */}
                           {session?.user?.role === "MINISTER" || session?.user?.role === "GENERAL_DIRECTOR" && (
-                            <div className="flex items-center mr-16">
+                            <div className="flex items-center mr-10">
                               <div className="flex items-center space-x-2">
                                 <p className="text-sm text-gray-500">
                                   Signature
@@ -410,22 +410,24 @@ export default function LicenseDetails({
                         </div>
                       </DialogTitle>
                     </DialogHeader>
-                    <div ref={componentRef}>
-                      <MiningLicense
-                        license_category={license.license_category}
-                        licenseNumber={license.license_ref_id}
-                        companyName={license.company_name}
-                        licenseType={license.business_type}
-                        miningArea={license.license_area}
-                        signature={signature}
-                        issueDate={license.created_at}
-                        expiryDate={license.expire_date}
-                        qrCodeUrl="/assets/sample-qr.png"
-                        signerSignatureUrl={signerSignatureUrl}
-                        ministerStampUrl={certificateAssets?.ministerStampUrl}
-                      />
+                    <div className="max-h-[calc(94vh-130px)] overflow-auto px-2 py-3 sm:px-4">
+                      <div ref={componentRef}>
+                        <MiningLicense
+                          license_category={license.license_category}
+                          licenseNumber={license.license_ref_id}
+                          companyName={license.company_name}
+                          licenseType={license.business_type}
+                          miningArea={license.license_area}
+                          signature={signature}
+                          issueDate={license.created_at}
+                          expiryDate={license.expire_date}
+                          qrCodeUrl="/assets/sample-qr.png"
+                          signerSignatureUrl={signerSignatureUrl}
+                          ministerStampUrl={certificateAssets?.ministerStampUrl}
+                        />
+                      </div>
                     </div>
-                    <DialogFooter>
+                    <DialogFooter className="border-t px-4 py-3 sm:px-6">
                       <Button
                         variant="default"
                         onClick={handlePrint}
