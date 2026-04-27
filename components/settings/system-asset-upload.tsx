@@ -24,22 +24,32 @@ const {
 } = config;
 
 const authenticator = async () => {
-  const response = await fetch("/api/auth/imagekit", {
-    credentials: "include",
-  });
-  if (!response.ok) {
-    let message = "Failed to initialize upload";
+  const endpoints = ["/api/auth/imagekit", `${config.env.apiEndpoint}/api/auth/imagekit`];
+  let lastError = "Failed to initialize upload";
+
+  for (const endpoint of endpoints) {
     try {
-      const err = (await response.json()) as { error?: string };
-      if (err?.error) message = err.error;
-    } catch {
-      // ignore parse errors and keep generic message
+      const response = await fetch(endpoint, { credentials: "include" });
+      if (!response.ok) {
+        let message = "Failed to initialize upload";
+        try {
+          const err = (await response.json()) as { error?: string };
+          if (err?.error) message = err.error;
+        } catch {
+          // ignore parse errors and keep generic message
+        }
+        lastError = message;
+        continue;
+      }
+      const data = await response.json();
+      const { signature, expire, token } = data;
+      return { token, expire, signature };
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : String(error);
     }
-    throw new Error(message);
   }
-  const data = await response.json();
-  const { signature, expire, token } = data;
-  return { token, expire, signature };
+
+  throw new Error(lastError);
 };
 
 type Props = {
@@ -64,10 +74,17 @@ export function SystemAssetUpload({
   const onError = (error?: unknown) => {
     setUploading(false);
     setProgress(0);
-    const message =
-      error instanceof Error && error.message
-        ? error.message
-        : "Upload failed";
+    const message = (() => {
+      if (error instanceof Error && error.message) return error.message;
+      if (typeof error === "string" && error.trim()) return error;
+      if (error && typeof error === "object") {
+        const record = error as Record<string, unknown>;
+        const msg = record.message ?? record.error_description ?? record.error;
+        if (typeof msg === "string" && msg.trim()) return msg;
+      }
+      return "Upload failed";
+    })();
+    console.error("Image upload failed:", error);
     toast.error(message);
   };
 
