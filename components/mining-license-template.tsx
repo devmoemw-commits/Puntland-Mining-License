@@ -38,7 +38,7 @@ export default function MiningLicense({
   return (
     //w-[1080px] h-[768px]
     <Card
-      className="relative w-full max-w-[320px] sm:max-w-[600px] md:max-w-[800px] lg:max-w-[900px] xl:max-w-[1000px] 
+      className="relative w-[960px] max-w-none
                    aspect-[297/210] mx-auto p-3 sm:p-6 md:p-12 lg:p-16 xl:p-20 overflow-hidden text-[#04224c] 
                    print:w-[297mm] print:h-[210mm] print:max-w-none print:aspect-auto print:p-[20mm]"
       style={{ fontFamily: "Times New Roman, Times, serif" }}
