@@ -17,7 +17,6 @@ import {
 type Workflow = {
   id: string;
   module: string;
-  code: string;
   name: string;
   description: string | null;
   definition: string;
@@ -41,7 +40,6 @@ type WorkflowStep = {
 
 const EMPTY_FORM = {
   module: "LICENSE",
-  code: "",
   name: "",
   description: "",
   isActive: true,
@@ -139,7 +137,6 @@ export function ApprovalWorkflowsManager({
     setEditingId(item.id);
     setForm({
       module: item.module,
-      code: item.code,
       name: item.name,
       description: item.description ?? "",
       isActive: item.isActive,
@@ -181,16 +178,6 @@ export function ApprovalWorkflowsManager({
                     setForm((p) => ({ ...p, module: e.target.value }))
                   }
                   placeholder="LICENSE"
-                  disabled={pending || (!!editingId && !canEdit)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="code">Code</Label>
-                <Input
-                  id="code"
-                  value={form.code}
-                  onChange={(e) => setForm((p) => ({ ...p, code: e.target.value }))}
-                  placeholder="LICENSE_DEFAULT"
                   disabled={pending || (!!editingId && !canEdit)}
                 />
               </div>
@@ -394,7 +381,7 @@ export function ApprovalWorkflowsManager({
                   <div>
                     <p className="font-medium">{item.name}</p>
                     <p className="text-xs text-muted-foreground">
-                      {item.module} • {item.code}
+                      {item.module}
                     </p>
                   </div>
                   <span className="text-xs text-muted-foreground">

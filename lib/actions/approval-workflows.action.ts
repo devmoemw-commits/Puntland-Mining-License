@@ -19,14 +19,6 @@ const workflowSchema = z.object({
     .refine((s) => /^[A-Z][A-Z0-9_]*$/.test(s), {
       message: "Use UPPER_SNAKE_CASE (e.g. LICENSE)",
     }),
-  code: z
-    .string()
-    .min(2)
-    .max(64)
-    .transform((s) => s.trim().toUpperCase())
-    .refine((s) => /^[A-Z][A-Z0-9_]*$/.test(s), {
-      message: "Use UPPER_SNAKE_CASE (e.g. LICENSE_DEFAULT)",
-    }),
   name: z.string().min(2).max(255),
   description: z.string().max(2000).optional(),
   definition: z.string().min(2),
@@ -39,19 +31,20 @@ export const createApprovalWorkflow = actionClient
     const denied = await requireActionPermission(Permissions.APPROVAL_WORKFLOW_CREATE);
     if (denied) return { error: denied };
 
-    const [existingByCode] = await db
+    const [existingByModule] = await db
       .select({ id: approvalWorkflows.id })
       .from(approvalWorkflows)
-      .where(eq(approvalWorkflows.code, parsedInput.code))
+      .where(eq(approvalWorkflows.module, parsedInput.module))
       .limit(1);
-    if (existingByCode) {
-      return { error: `Workflow code "${parsedInput.code}" already exists. Use a different code.` };
+    if (existingByModule) {
+      return { error: `A workflow for module "${parsedInput.module}" already exists.` };
     }
 
     try {
       await db.insert(approvalWorkflows).values({
         module: parsedInput.module,
-        code: parsedInput.code,
+        // Keep legacy `code` column populated for backward compatibility.
+        code: parsedInput.module,
         name: parsedInput.name.trim(),
         description: parsedInput.description?.trim() || null,
         definition: parsedInput.definition.trim(),
@@ -68,7 +61,7 @@ export const createApprovalWorkflow = actionClient
         String(msg).toLowerCase().includes("unique") ||
         String(msg).toLowerCase().includes("duplicate")
       ) {
-        return { error: "A workflow with this code already exists" };
+        return { error: "A workflow for this module already exists" };
       }
       return { error: "Failed to create approval workflow. Please check your inputs and try again." };
     }
@@ -88,13 +81,13 @@ export const updateApprovalWorkflow = actionClient
     if (denied) return { error: denied };
 
     const { id, ...rest } = parsedInput;
-    const [existingByCode] = await db
+    const [existingByModule] = await db
       .select({ id: approvalWorkflows.id })
       .from(approvalWorkflows)
-      .where(and(eq(approvalWorkflows.code, rest.code), ne(approvalWorkflows.id, id)))
+      .where(and(eq(approvalWorkflows.module, rest.module), ne(approvalWorkflows.id, id)))
       .limit(1);
-    if (existingByCode) {
-      return { error: `Workflow code "${rest.code}" already exists. Use a different code.` };
+    if (existingByModule) {
+      return { error: `A workflow for module "${rest.module}" already exists.` };
     }
 
     try {
@@ -102,7 +95,8 @@ export const updateApprovalWorkflow = actionClient
         .update(approvalWorkflows)
         .set({
           module: rest.module,
-          code: rest.code,
+          // Keep legacy `code` column in sync with module.
+          code: rest.module,
           name: rest.name.trim(),
           description: rest.description?.trim() || null,
           definition: rest.definition.trim(),
@@ -121,7 +115,7 @@ export const updateApprovalWorkflow = actionClient
         String(msg).toLowerCase().includes("unique") ||
         String(msg).toLowerCase().includes("duplicate")
       ) {
-        return { error: "A workflow with this code already exists" };
+        return { error: "A workflow for this module already exists" };
       }
       return { error: "Failed to update approval workflow. Please check your inputs and try again." };
     }
