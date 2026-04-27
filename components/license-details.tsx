@@ -411,7 +411,7 @@ export default function LicenseDetails({
                       </DialogTitle>
                     </DialogHeader>
                     <div className="flex-1 overflow-auto px-2 py-3 sm:px-4">
-                      <div ref={componentRef} className="mx-auto min-w-[900px] w-fit">
+                      <div ref={componentRef} className="mx-auto w-full max-w-[960px]">
                         <MiningLicense
                           license_category={license.license_category}
                           licenseNumber={license.license_ref_id}
