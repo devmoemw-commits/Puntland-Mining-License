@@ -20,6 +20,7 @@ import {
   Sidebar,
   SidebarContent,
   SidebarGroup,
+  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -50,6 +51,7 @@ type NavItem = {
   title: string;
   path: string;
   icon: LucideIcon;
+  section?: "main" | "management";
   children?: SubNavItem[];
   /** If omitted, any signed-in user can see the item. */
   permissions?: readonly Permission[];
@@ -61,11 +63,13 @@ const navigationItems: NavItem[] = [
     title: "Dashboard",
     path: "/",
     icon: LayoutDashboard,
+    section: "main",
   },
   {
     title: "Licenses",
     path: "/licenses",
     icon: FileBadge,
+    section: "main",
     permissions: ROUTE_PERMISSION_RULES["/licenses"],
     children: [
       {
@@ -84,6 +88,7 @@ const navigationItems: NavItem[] = [
     title: "Sample Analysis",
     path: "/sample-analysis",
     icon: TestTube2,
+    section: "main",
     permissions: ROUTE_PERMISSION_RULES["/sample-analysis"],
     children: [
       {
@@ -102,18 +107,21 @@ const navigationItems: NavItem[] = [
     title: "Reports",
     path: "/reports",
     icon: FileChartLine,
+    section: "main",
     permissions: ROUTE_PERMISSION_RULES["/reports"],
   },
   {
     title: "Users",
     path: "/users",
     icon: Users,
+    section: "management",
     permissions: ROUTE_PERMISSION_RULES["/users"],
   },
   {
     title: "Settings",
     path: "/settings",
     icon: Settings,
+    section: "management",
     children: [
       {
         title: "System Settings",
@@ -161,73 +169,58 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   };
 
   const filteredNavigationItems = navigationItems.filter(canSeeNavItem);
-
-  // Custom active class for child links with smooth transitions
-  const childActiveClass =
-    "transition-all duration-300 ease-in-out data-[active=true]:bg-[#3730a3] dark:hover:bg-[#3730a3] data-[active=true]:text-white hover:data-[active=true]:bg-[#3730a3] hover:data-[active=true]:text-white [&[data-active=true]>svg]:text-white [&:hover[data-active=true]>svg]:text-white hover:bg-gray-100 hover:scale-[1.02] data-[active=true]:shadow-md data-[active=true]:border-l-4 data-[active=true]:border-l-white";
-
-  // Custom active class for single items with smooth transitions
-  const singleItemActiveClass = `
-  transition-all duration-300 ease-in-out
-  data-[active=true]:bg-[#3730a3] 
-  data-[active=true]:text-white
-  hover:data-[active=true]:bg-[#3730a3] 
-  hover:data-[active=true]:text-white 
-  dark:hover:bg-[#3730a3] 
-  [&[data-active=true]>svg]:text-white 
-  [&:hover[data-active=true]>svg]:text-white 
-  hover:bg-gray-100 
-  hover:scale-[1.02] 
-  data-[active=true]:shadow-md 
-  data-[active=true]:border-l-4 
-  data-[active=true]:border-l-white
-  `;
-
-  // Icon animation class
-  const iconAnimationClass =
-    "transition-all duration-200 ease-in-out hover:scale-110";
+  const mainItems = filteredNavigationItems.filter((item) => item.section !== "management");
+  const managementItems = filteredNavigationItems.filter(
+    (item) => item.section === "management",
+  );
 
   return (
-    <Sidebar collapsible="icon" {...props}>
+    <Sidebar collapsible="icon" className="border-r border-slate-200/70 dark:border-slate-800" {...props}>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
               size="lg"
               asChild
-              className="transition-all duration-200 hover:scale-105"
+              className="rounded-xl px-2.5 py-2 hover:bg-slate-100 dark:hover:bg-slate-800"
             >
               <Link href="/">
-                <div className="flex aspect-square size-8 items-center justify-center rounded-lg text-sidebar-primary-foreground">
+                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-white text-sidebar-primary-foreground shadow-sm dark:bg-slate-900">
                   <Image
                     src={"/assets/puntland_logo.svg"}
                     alt="logo"
                     width={80}
                     height={80}
-                    className="transition-transform duration-200 hover:rotate-12"
+                    className="object-contain"
                   />
                 </div>
                 <div className="flex flex-col gap-0.5 leading-none">
-                  <span className="font-semibold">WTMB</span>
+                  <span className="font-semibold tracking-tight">WTMB</span>
+                  <span className="text-[11px] text-slate-500">Mining License System</span>
                 </div>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
-      <SidebarContent>
-        <SidebarGroup>
-          <SidebarMenu>
-            {filteredNavigationItems.map((item) => (
+      <SidebarContent className="px-1">
+        <SidebarGroup className="pt-0">
+          <SidebarGroupLabel className="text-[11px] uppercase tracking-wide text-slate-500">
+            Main
+          </SidebarGroupLabel>
+          <SidebarMenu className="gap-1.5">
+            {mainItems.map((item) => (
               <SidebarMenuItem key={item.title}>
                 {item.children ? (
-                  // Parent item with children - subtle hover animation
                   <>
-                    <SidebarMenuButton className="transition-all duration-200 ease-in-out hover:scale-[1.01]">
-                      <item.icon className={`size-4 ${iconAnimationClass}`} />
+                    <SidebarMenuButton
+                      isActive={pathname.startsWith(item.path)}
+                      className="rounded-lg px-2.5 data-[active=true]:bg-indigo-50 data-[active=true]:text-indigo-700 data-[active=true]:font-semibold hover:bg-slate-100 dark:data-[active=true]:bg-indigo-950/40 dark:data-[active=true]:text-indigo-300 dark:hover:bg-slate-800"
+                    >
+                      <item.icon className="size-4" />
                       <span>{item.title}</span>
                     </SidebarMenuButton>
-                    <SidebarMenuSub className="space-y-1">
+                    <SidebarMenuSub className="ml-2 space-y-1 border-l border-slate-200/80 dark:border-slate-800">
                       {item.children
                         .filter((child) => canSeeChild(child, item))
                         .map((child) => (
@@ -235,12 +228,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                           <SidebarMenuSubButton
                             asChild
                             isActive={isChildActive(child.path)}
-                            className={childActiveClass}
+                            className="rounded-md px-2 data-[active=true]:bg-indigo-600 data-[active=true]:text-white hover:bg-slate-100 dark:hover:bg-slate-800"
                           >
                             <Link href={child.path}>
-                              <child.icon
-                                className={`size-3.5 ${iconAnimationClass}`}
-                              />
+                              <child.icon className="size-3.5" />
                               {child.title}
                             </Link>
                           </SidebarMenuSubButton>
@@ -249,17 +240,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     </SidebarMenuSub>
                   </>
                 ) : (
-                  // Single item without children - keep active styling for these
                   <SidebarMenuButton
                     asChild
                     isActive={isActive(item.path)}
-                    className={singleItemActiveClass}
+                    className="rounded-lg px-2.5 data-[active=true]:bg-indigo-600 data-[active=true]:font-semibold data-[active=true]:text-white hover:bg-slate-100 dark:hover:bg-slate-800"
                   >
-                    <Link
-                      href={item.path}
-                      className="transition-all duration-200 ease-in-out hover:scale-[1.01] dark:hover:bg-[#3730a3]"
-                    >
-                      <item.icon className={`size-4 ${iconAnimationClass}`} />
+                    <Link href={item.path}>
+                      <item.icon className="size-4" />
                       <span>{item.title}</span>
                     </Link>
                   </SidebarMenuButton>
@@ -268,6 +255,60 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             ))}
           </SidebarMenu>
         </SidebarGroup>
+
+        {managementItems.length > 0 ? (
+          <SidebarGroup>
+            <SidebarGroupLabel className="text-[11px] uppercase tracking-wide text-slate-500">
+              Administration
+            </SidebarGroupLabel>
+            <SidebarMenu className="gap-1.5">
+              {managementItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  {item.children ? (
+                    <>
+                      <SidebarMenuButton
+                        isActive={pathname.startsWith(item.path)}
+                        className="rounded-lg px-2.5 data-[active=true]:bg-indigo-50 data-[active=true]:text-indigo-700 data-[active=true]:font-semibold hover:bg-slate-100 dark:data-[active=true]:bg-indigo-950/40 dark:data-[active=true]:text-indigo-300 dark:hover:bg-slate-800"
+                      >
+                        <item.icon className="size-4" />
+                        <span>{item.title}</span>
+                      </SidebarMenuButton>
+                      <SidebarMenuSub className="ml-2 space-y-1 border-l border-slate-200/80 dark:border-slate-800">
+                        {item.children
+                          .filter((child) => canSeeChild(child, item))
+                          .map((child) => (
+                            <SidebarMenuSubItem key={child.title}>
+                              <SidebarMenuSubButton
+                                asChild
+                                isActive={isChildActive(child.path)}
+                                className="rounded-md px-2 data-[active=true]:bg-indigo-600 data-[active=true]:text-white hover:bg-slate-100 dark:hover:bg-slate-800"
+                              >
+                                <Link href={child.path}>
+                                  <child.icon className="size-3.5" />
+                                  {child.title}
+                                </Link>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          ))}
+                      </SidebarMenuSub>
+                    </>
+                  ) : (
+                    <SidebarMenuButton
+                      asChild
+                      isActive={isActive(item.path)}
+                      className="rounded-lg px-2.5 data-[active=true]:bg-indigo-600 data-[active=true]:font-semibold data-[active=true]:text-white hover:bg-slate-100 dark:hover:bg-slate-800"
+                    >
+                      <Link href={item.path}>
+                        <item.icon className="size-4" />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  )}
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroup>
+        ) : null}
       </SidebarContent>
       <SidebarRail />
     </Sidebar>
