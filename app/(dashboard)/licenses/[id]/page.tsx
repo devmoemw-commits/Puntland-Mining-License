@@ -303,7 +303,10 @@ async function getLicenseWorkflowByLicenseId(
       toStatus: row.transition.toStatus,
       comment: row.transition.comment ?? null,
       createdAt: toIso(row.transition.createdAt),
-      actedByName: null,
+      actedByName:
+        row.transition.actedByName ??
+        row.actorName ??
+        null,
       actedByRole: row.actorRole ?? null,
       actedBySignatureUrl:
         row.transition.actedBySignatureUrl ??

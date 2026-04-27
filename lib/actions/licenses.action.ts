@@ -370,6 +370,7 @@ export const UpdateLicenseStatus = actionClient
         const [actor] = await db
           .select({
             signatureImageUrl: users.signatureImageUrl,
+            name: users.name,
           })
           .from(users)
           .where(eq(users.id, session.user.id))
@@ -379,6 +380,12 @@ export const UpdateLicenseStatus = actionClient
           return {
             error:
               "You must upload your signature in profile before taking this action.",
+          };
+        }
+
+        if (!actor?.name?.trim()) {
+          return {
+            error: "Please set your full name in profile before taking workflow actions.",
           };
         }
 
@@ -413,11 +420,8 @@ export const UpdateLicenseStatus = actionClient
           fromStatus: current.status,
           toStatus: status,
           actedByUserId: session?.user?.id ?? null,
-          actedByName: null,
-          actedBySignatureUrl:
-            status === "REVIEW" || status === "APPROVED"
-              ? (actor?.signatureImageUrl ?? null)
-              : null,
+          actedByName: actor.name.trim(),
+          actedBySignatureUrl: actor?.signatureImageUrl ?? null,
           comment: comment ?? null,
         });
       } else {

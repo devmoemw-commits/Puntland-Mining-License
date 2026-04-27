@@ -935,6 +935,7 @@ export default function LicenseDetails({
                   const transition = workflow?.transitions.find(
                     (item) => item.actedByRole?.toUpperCase() === role.code,
                   );
+                  const actorName = transition?.actedByName ?? "No action taker";
                   const actionStatus = transition?.toStatus?.toUpperCase();
                   const shouldRenderSignature =
                     actionStatus === "REVIEW" || actionStatus === "APPROVED";
@@ -1009,7 +1010,7 @@ export default function LicenseDetails({
                         )}
                       </div>
                       <p className="mt-3 text-sm font-medium text-slate-800 dark:text-slate-100">
-                        {transition ? "Action recorded" : "No action taken"}
+                        {transition ? actorName : "No action taken"}
                       </p>
                       <p className="text-xs text-slate-500">
                         {transition ? formatDate(transition.createdAt, "dd MMMM, yyyy") : "--"}
