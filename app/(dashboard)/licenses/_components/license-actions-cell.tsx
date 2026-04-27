@@ -46,8 +46,9 @@ export function LicenseActionsCell({ license }: LicenseActionsCellProps) {
         return
       }
 
+      const actionLabel = newStatus === "REVIEW" ? "Sending to review" : "Rejecting"
       toast.promise(UpdateLicenseStatus({ id: license.id, status: newStatus, comment }), {
-        loading: `${newStatus === "APPROVED" ? "Approving" : newStatus === "REVIEW" ? "Sending to review" : "Rejecting"} license...`,
+        loading: `${actionLabel} license...`,
         success: () => {
           router.refresh()
           return `License ${newStatus.toLowerCase()} successfully`
