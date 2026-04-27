@@ -42,8 +42,14 @@ const config = {
       nextAuthSecret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET ?? "",
       apiSecretKey: process.env.API_SECRET_KEY ?? "",
       imagekit: {
-        publicKey: process.env.NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY ?? "",
-        urlEndpoint: process.env.NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT ?? "",
+        publicKey:
+          process.env.NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY ??
+          process.env.IMAGEKIT_PUBLIC_KEY ??
+          "",
+        urlEndpoint:
+          process.env.NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT ??
+          process.env.IMAGEKIT_URL_ENDPOINT ??
+          "",
         privateKey: process.env.IMAGEKIT_PRIVATE_KEY ?? "",
       },
       databaseUrl: process.env.DATABASE_URL ?? process.env.POSTGRES_URL ?? process.env.NEON_DATABASE_URL ?? "",
