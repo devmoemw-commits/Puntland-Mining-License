@@ -72,7 +72,9 @@ export function SystemAssetUpload({
   };
 
   const onSuccess = (res: ImageKitUploadResponse) => {
-    const fullUrl = `${urlEndpoint}/${res.filePath}`;
+    const normalizedEndpoint = (urlEndpoint ?? "").replace(/\/+$/, "");
+    const normalizedPath = (res.filePath ?? "").replace(/^\/+/, "");
+    const fullUrl = res.url || `${normalizedEndpoint}/${normalizedPath}`;
     onUrlChange(fullUrl);
     setUploading(false);
     setProgress(100);

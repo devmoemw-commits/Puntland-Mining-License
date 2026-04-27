@@ -322,6 +322,7 @@ export const updateUserSignatureImage = async (
 
     revalidatePath("/user/profile");
     revalidatePath("/users");
+    revalidatePath(`/users/${userId}`);
     revalidatePath("/licenses");
     return { success: true };
   } catch (error) {

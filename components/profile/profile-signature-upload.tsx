@@ -14,12 +14,19 @@ export function ProfileSignatureUpload({ userId, initialUrl }: Props) {
   const [value, setValue] = useState(initialUrl);
 
   async function onUrlChange(url: string) {
+    const previousValue = value;
     setValue(url);
-    const res = await updateUserSignatureImage(userId, url ? url : null);
-    if (res.success) {
-      toast.success("Signature image saved");
-    } else {
-      toast.error(res.error);
+    try {
+      const res = await updateUserSignatureImage(userId, url ? url : null);
+      if (res.success) {
+        toast.success("Signature image saved");
+      } else {
+        setValue(previousValue);
+        toast.error(res.error);
+      }
+    } catch {
+      setValue(previousValue);
+      toast.error("Failed to save signature image");
     }
   }
 
