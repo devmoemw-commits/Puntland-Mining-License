@@ -935,7 +935,6 @@ export default function LicenseDetails({
                   const transition = workflow?.transitions.find(
                     (item) => item.actedByRole?.toUpperCase() === role.code,
                   );
-                  const actorName = transition?.actedByName ?? role.userName ?? "Unassigned";
                   const actionStatus = transition?.toStatus?.toUpperCase();
                   const shouldRenderSignature =
                     actionStatus === "REVIEW" || actionStatus === "APPROVED";
@@ -1000,7 +999,7 @@ export default function LicenseDetails({
                         {actorSignature ? (
                           <Image
                             src={actorSignature}
-                            alt={`${actorName} signature`}
+                            alt={`${role.label} action signature`}
                             width={110}
                             height={32}
                             className="h-8 w-auto object-contain opacity-90"
@@ -1010,7 +1009,7 @@ export default function LicenseDetails({
                         )}
                       </div>
                       <p className="mt-3 text-sm font-medium text-slate-800 dark:text-slate-100">
-                        {actorName}
+                        {transition ? "Action recorded" : "No action taken"}
                       </p>
                       <p className="text-xs text-slate-500">
                         {transition ? formatDate(transition.createdAt, "dd MMMM, yyyy") : "--"}
