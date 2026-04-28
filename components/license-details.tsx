@@ -97,10 +97,7 @@ export default function LicenseDetails({
 
   const router = useRouter();
 
-  const handlePrint = useReactToPrint({
-    documentTitle: `WTMB-${license.company_name}`,
-    contentRef: componentRef,
-    pageStyle: `
+  const printPageStyle = `
       @page {
         size: A4 landscape;
         margin: 0;
@@ -133,7 +130,51 @@ export default function LicenseDetails({
         border: 0 !important;
         border-radius: 0 !important;
       }
-    `,
+    `;
+
+  const handlePrint = useReactToPrint({
+    documentTitle: `WTMB-${license.company_name}`,
+    contentRef: componentRef,
+    pageStyle: printPageStyle,
+    print: async (printIframe) => {
+      // Ensure Tailwind/global styles exist inside the print iframe.
+      const printDocument = printIframe.contentDocument;
+      const printWindow = printIframe.contentWindow;
+      if (!printDocument || !printWindow) return;
+
+      const head = printDocument.head;
+      const parentHead = document.head;
+
+      const nodesToCopy = parentHead.querySelectorAll(
+        'link[rel="stylesheet"], style'
+      );
+
+      nodesToCopy.forEach((node) => {
+        head.appendChild(node.cloneNode(true));
+      });
+
+      const inlinePrintStyle = printDocument.createElement("style");
+      inlinePrintStyle.setAttribute("data-react-to-print", "pageStyle");
+      inlinePrintStyle.appendChild(printDocument.createTextNode(printPageStyle));
+      head.appendChild(inlinePrintStyle);
+
+      const links = Array.from(
+        head.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]')
+      );
+      await Promise.all(
+        links.map(
+          (link) =>
+            new Promise<void>((resolve) => {
+              if (link.sheet) return resolve();
+              link.onload = () => resolve();
+              link.onerror = () => resolve();
+            })
+        )
+      );
+
+      printWindow.focus();
+      printWindow.print();
+    },
   });
 
   // Calculate days remaining until expiration
