@@ -57,7 +57,7 @@ export default function MiningLicense({
         {/* Header (top band) */}
         <div
           className="text-center print:!mt-[24mm] print:!mx-[20mm] print:!mb-[6mm]"
-          style={{ margin: "60px 116px 22px" }}
+          style={{ margin: "110px 116px 22px" }}
         >
           <div className="grid grid-cols-3 items-start">
             <h2 className="text-[10px] sm:text-[11px] md:text-[12px] print:text-lg font-semibold leading-snug text-left">
