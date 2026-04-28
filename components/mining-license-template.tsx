@@ -56,7 +56,7 @@ export default function MiningLicense({
       <div className="absolute inset-0 z-50 flex h-full flex-col">
         {/* Header (top band) */}
         <div
-          className="text-center"
+          className="text-center certificate-header"
           style={{ margin: "110px 116px 22px" }}
         >
           <div className="grid grid-cols-3 items-start">

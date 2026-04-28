@@ -138,6 +138,11 @@ export default function LicenseDetails({
         transform: scale(0.84);
         transform-origin: top left;
       }
+
+      /* Print-only: push certificate header down */
+      .certificate-header {
+        margin-top: 28mm !important;
+      }
     `;
 
   const handlePrint = useReactToPrint({
