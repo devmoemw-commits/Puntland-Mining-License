@@ -52,12 +52,12 @@ export default function MiningLicense({
         />
       </div>
 
-      {/* Overlay: place dynamic data by coordinates (certificate drives layout) */}
-      <div className="absolute inset-0 z-50">
+      {/* Overlay: normal flow layout (no absolute children) */}
+      <div className="absolute inset-0 z-50 flex h-full flex-col">
         {/* Header (top band) */}
-        <div className="absolute left-[8%] right-[8%] top-[5%] text-center">
+        <div className="text-center mt-[65px] mx-[116px] mb-[22px]">
           <div className="grid grid-cols-3 items-start">
-            <h2 className="text-[10px] sm:text-[11px] md:text-[12px] print:text-lg font-semibold leading-tight text-left">
+            <h2 className="text-[10px] sm:text-[11px] md:text-[12px] print:text-lg font-semibold leading-snug text-left">
               Dowladda Puntland ee Soomaaliya <br /> Wasaaradda Tamarta Macdanta
               & Biyaha <br /> Xafiiska Wasiirka
             </h2>
@@ -71,14 +71,14 @@ export default function MiningLicense({
                 />
               </div>
             </div>
-            <h2 className="text-[10px] sm:text-[11px] md:text-[12px] print:text-lg font-semibold leading-tight text-right">
+            <h2 className="text-[10px] sm:text-[11px] md:text-[12px] print:text-lg font-semibold leading-snug text-right">
               Puntland State of Somalia <br /> Ministry of Energy Minerals &
               Water <br /> Office of the Minister
             </h2>
           </div>
 
           <div className="mt-1 leading-tight">
-            <h1 className="text-[10px] sm:text-sm md:text-base print:text-2xl font-bold">
+            <h1 className="text-[10px] sm:text-sm md:text-base print:text-2xl font-bold m-0">
               SHATIGA KA GANACSIGA MACDANTA
             </h1>
             <h1 className="text-[10px] sm:text-sm md:text-base print:text-2xl font-bold">
@@ -86,15 +86,15 @@ export default function MiningLicense({
             </h1>
           </div>
 
-          <p className="mt-1 text-[11px] sm:text-[12px] md:text-[13px] print:text-xl leading-snug">
+          <p className="text-[11px] sm:text-[12px] md:text-[13px] print:text-xl leading-snug">
             Wasaaradda Tamarta Macdanta iyo Biyaha waxay shatiga ganacsiga
             macdanta u oggolaatay <br />
             Ministry of Energy Minerals & Water has granted the mining license
           </p>
         </div>
 
-        {/* Main dynamic block (left-middle) */}
-        <div className="absolute left-[11%] top-[34%] w-[58%] space-y-2 text-[12px] sm:text-[13px] md:text-[14px] print:text-[20px] leading-snug capitalize">
+        {/* Main dynamic block */}
+        <div className="space-y-2 text-[12px] sm:text-[13px] md:text-[14px] print:text-[20px] leading-snug capitalize mx-[129px]">
           <p className="font-medium">{licenseNumber}</p>
           <p>
             Shirkadda/Company:{" "}
@@ -113,65 +113,68 @@ export default function MiningLicense({
           </p>
         </div>
 
-        {/* Expiry date (right-middle) */}
-        <div className="absolute right-[11%] top-[52%] text-[12px] sm:text-[13px] md:text-[14px] print:text-[20px] leading-snug text-red-600">
-          Date Of Expiry: <span className="font-semibold">{expiryDateFormatted}</span>
+        {/* Expiry date (right aligned) */}
+        <div className="text-[12px] sm:text-[13px] md:text-[14px] print:text-[20px] leading-snug text-red-600 flex justify-end mr-[137px]">
+          Date Of Expiry:{" "}
+          <span className="font-semibold">{expiryDateFormatted}</span>
         </div>
 
-        {/* Footer caption (bottom center) */}
-        <div className="absolute left-0 right-0 bottom-[13%] text-center">
+        <div className="flex-1" />
+
+        {/* Footer caption */}
+        <div className="text-center">
           <p className="text-[11px] sm:text-[12px] md:text-[13px] print:text-[20px] font-medium leading-tight">
             Wasiirka Wasaaradda Tamarta, Macdanta Biyaha <br />
             Ministry Of Energy Minerals and Water
           </p>
         </div>
 
-        {/* Signature (bottom center) */}
-        <div className="absolute left-0 right-0 bottom-[4.5%] flex justify-center">
-          {signature ? (
-            <div className="relative h-[56px] w-[140px] sm:h-[64px] sm:w-[170px] md:h-[72px] md:w-[190px] print:h-[110px] print:w-[230px]">
+        {/* Bottom row: stamp / signature / QR (space-between) */}
+        <div className="mx-[116px] mb-[40px] mt-2 flex items-end justify-between">
+          <div className="flex items-end">
+            <div className="relative h-[72px] w-[72px] sm:h-[84px] sm:w-[84px] md:h-[96px] md:w-[96px] print:h-[100px] print:w-[100px]">
               <Image
-                src={signerSignatureUrl || "/assets/signature.png"}
-                alt="Signature"
+                src={ministerStampUrl || "/assets/moemw-logo.png"}
+                alt="Official Seal"
                 fill
-                className="object-contain"
-                unoptimized={!!signerSignatureUrl}
-              />
-            </div>
-          ) : (
-            <div className="text-[12px] sm:text-[13px] md:text-[14px] print:text-[20px]">
-              Signature
-            </div>
-          )}
-        </div>
-
-        {/* Minister stamp (bottom-left) */}
-        <div className="absolute left-[7.5%] bottom-[8%]">
-          <div className="relative h-[72px] w-[72px] sm:h-[84px] sm:w-[84px] md:h-[96px] md:w-[96px] print:h-[100px] print:w-[100px]">
-            <Image
-              src={ministerStampUrl || "/assets/moemw-logo.png"}
-              alt="Official Seal"
-              fill
-              style={{ objectFit: "contain" }}
-              unoptimized={!!ministerStampUrl}
-            />
-          </div>
-        </div>
-
-        {/* QR code (bottom-right) */}
-        {qrCodeUrl ? (
-          <div className="absolute right-[6.5%] bottom-[6.5%]">
-            <div className="border-2 border-blue-200 bg-white p-[3px]">
-              <QRCodeSVG
-                value={`${config.env.apiEndpoint}/verify-license?ref_id=${licenseNumber}`}
-                size={96}
-                level="H"
-                bgColor="#FFFFFF"
-                fgColor="#000000"
+                style={{ objectFit: "contain" }}
+                unoptimized={!!ministerStampUrl}
               />
             </div>
           </div>
-        ) : null}
+
+          <div className="flex flex-1 justify-center">
+            {signature ? (
+              <div className="relative h-[56px] w-[140px] sm:h-[64px] sm:w-[170px] md:h-[72px] md:w-[190px] print:h-[110px] print:w-[230px]">
+                <Image
+                  src={signerSignatureUrl || "/assets/signature.png"}
+                  alt="Signature"
+                  fill
+                  className="object-contain"
+                  unoptimized={!!signerSignatureUrl}
+                />
+              </div>
+            ) : (
+              <div className="text-[12px] sm:text-[13px] md:text-[14px] print:text-[20px]">
+                Signature
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-end">
+            {qrCodeUrl ? (
+              <div className="border-2 border-blue-200 bg-white p-[3px]">
+                <QRCodeSVG
+                  value={`${config.env.apiEndpoint}/verify-license?ref_id=${licenseNumber}`}
+                  size={96}
+                  level="H"
+                  bgColor="#FFFFFF"
+                  fgColor="#000000"
+                />
+              </div>
+            ) : null}
+          </div>
+        </div>
       </div>
     </Card>
   );
