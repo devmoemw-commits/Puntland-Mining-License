@@ -36,7 +36,6 @@ export default function MiningLicense({
   const expiryDateFormatted = new Date(expiryDate).toLocaleDateString("en-US");
 
   return (
-    //w-[1080px] h-[768px]
     <Card
       className="relative w-[960px] max-w-full aspect-[297/210] mx-auto overflow-hidden text-[#04224c]
                  print:w-[297mm] print:h-[210mm] print:max-w-none print:aspect-auto print:p-0"
@@ -53,48 +52,50 @@ export default function MiningLicense({
         />
       </div>
 
-      {/* Content Container - Groups all content elements */}
-      <div className="relative z-50 h-full px-10 py-8 sm:px-12 sm:py-10 md:px-14 md:py-12 print:p-[20mm]">
-        {/* Header Section */}
-        <div className="text-center w-full mx-auto print:px-10 print:mt-8">
-          <div className="flex items-center justify-between">
-            <h2 className="xlg:text-[13px] text-[10px] print:text-lg  font-semibold leading-tight">
+      {/* Overlay: place dynamic data by coordinates (certificate drives layout) */}
+      <div className="absolute inset-0 z-50">
+        {/* Header (top band) */}
+        <div className="absolute left-[8%] right-[8%] top-[5%] text-center">
+          <div className="grid grid-cols-3 items-start">
+            <h2 className="text-[10px] sm:text-[11px] md:text-[12px] print:text-lg font-semibold leading-tight text-left">
               Dowladda Puntland ee Soomaaliya <br /> Wasaaradda Tamarta Macdanta
               & Biyaha <br /> Xafiiska Wasiirka
             </h2>
-            <div className="relative print:w-[200px] print:h-[100px] xlg:w-[150px] xlg:h-[80px] w-[120px] h-[50px]">
-              <Image
-                src="/assets/puntland_logo.svg"
-                alt="Puntland Logo"
-                fill
-                style={{ objectFit: "contain" }}
-              />
+            <div className="mx-auto">
+              <div className="relative h-[44px] w-[110px] sm:h-[56px] sm:w-[135px] md:h-[64px] md:w-[150px] print:h-[100px] print:w-[200px]">
+                <Image
+                  src="/assets/puntland_logo.svg"
+                  alt="Puntland Logo"
+                  fill
+                  style={{ objectFit: "contain" }}
+                />
+              </div>
             </div>
-            <h2 className="xlg:text-[13px] text-[10px] print:text-lg font-semibold mt-2 leading-tight">
+            <h2 className="text-[10px] sm:text-[11px] md:text-[12px] print:text-lg font-semibold leading-tight text-right">
               Puntland State of Somalia <br /> Ministry of Energy Minerals &
               Water <br /> Office of the Minister
             </h2>
           </div>
-          <div className="leading-tight">
-            <h1 className="print:text-2xl xlg:text-lg text-[10px] font-bold mt-1">
+
+          <div className="mt-1 leading-tight">
+            <h1 className="text-[10px] sm:text-sm md:text-base print:text-2xl font-bold">
               SHATIGA KA GANACSIGA MACDANTA
             </h1>
-            <h1 className="print:text-2xl xlg:text-lg text-[10px] font-bold">
+            <h1 className="text-[10px] sm:text-sm md:text-base print:text-2xl font-bold">
               MINING LICENSE
             </h1>
           </div>
+
+          <p className="mt-1 text-[11px] sm:text-[12px] md:text-[13px] print:text-xl leading-snug">
+            Wasaaradda Tamarta Macdanta iyo Biyaha waxay shatiga ganacsiga
+            macdanta u oggolaatay <br />
+            Ministry of Energy Minerals & Water has granted the mining license
+          </p>
         </div>
 
-        {/* Description */}
-        <p className="mt-1 print:mt-1 text-center print:text-xl xlg:text-lg text-[13px]">
-          Wasaaradda Tamarta Macdanta iyo Biyaha waxay shatiga ganacsiga
-          macdanta u oggolaatay <br />
-          Ministry of Energy Minerals & Water has granted the mining license
-        </p>
-
-        {/* License Details */}
-        <div className="mt-4 print:mt-4 capitalize space-y-2 xlg:text-lg text-[13px] print:text-[20px] print:px-32 px-6 sm:px-10 md:px-12 print:leading-7 xlg:leading-none leading-4">
-          <p>{licenseNumber}</p>
+        {/* Main dynamic block (left-middle) */}
+        <div className="absolute left-[11%] top-[34%] w-[58%] space-y-2 text-[12px] sm:text-[13px] md:text-[14px] print:text-[20px] leading-snug capitalize">
+          <p className="font-medium">{licenseNumber}</p>
           <p>
             Shirkadda/Company:{" "}
             <span className="font-semibold">{companyName}</span>
@@ -105,81 +106,72 @@ export default function MiningLicense({
           </p>
           <p>
             Shirkaddu waxay ka shaqayn karta Degmada/Mining Area:{" "}
-            <span className="font-semibold">
-              {miningArea.join(", ")}
-            </span>
+            <span className="font-semibold">{miningArea.join(", ")}</span>
           </p>
-          <div className="flex justify-between mt-2">
-            <p>
-              Date of Issue:{" "}
-              <span className="font-semibold">{issueDateFormatted}</span>
-            </p>
-            <p className="text-red-600">
-              Date of Expiry:{" "}
-              <span className="font-semibold">{expiryDateFormatted}</span>
-            </p>
+          <p>
+            Date Of Issue: <span className="font-semibold">{issueDateFormatted}</span>
+          </p>
+        </div>
+
+        {/* Expiry date (right-middle) */}
+        <div className="absolute right-[11%] top-[52%] text-[12px] sm:text-[13px] md:text-[14px] print:text-[20px] leading-snug text-red-600">
+          Date Of Expiry: <span className="font-semibold">{expiryDateFormatted}</span>
+        </div>
+
+        {/* Footer caption (bottom center) */}
+        <div className="absolute left-0 right-0 bottom-[13%] text-center">
+          <p className="text-[11px] sm:text-[12px] md:text-[13px] print:text-[20px] font-medium leading-tight">
+            Wasiirka Wasaaradda Tamarta, Macdanta Biyaha <br />
+            Ministry Of Energy Minerals and Water
+          </p>
+        </div>
+
+        {/* Signature (bottom center) */}
+        <div className="absolute left-0 right-0 bottom-[4.5%] flex justify-center">
+          {signature ? (
+            <div className="relative h-[56px] w-[140px] sm:h-[64px] sm:w-[170px] md:h-[72px] md:w-[190px] print:h-[110px] print:w-[230px]">
+              <Image
+                src={signerSignatureUrl || "/assets/signature.png"}
+                alt="Signature"
+                fill
+                className="object-contain"
+                unoptimized={!!signerSignatureUrl}
+              />
+            </div>
+          ) : (
+            <div className="text-[12px] sm:text-[13px] md:text-[14px] print:text-[20px]">
+              Signature
+            </div>
+          )}
+        </div>
+
+        {/* Minister stamp (bottom-left) */}
+        <div className="absolute left-[7.5%] bottom-[8%]">
+          <div className="relative h-[72px] w-[72px] sm:h-[84px] sm:w-[84px] md:h-[96px] md:w-[96px] print:h-[100px] print:w-[100px]">
+            <Image
+              src={ministerStampUrl || "/assets/moemw-logo.png"}
+              alt="Official Seal"
+              fill
+              style={{ objectFit: "contain" }}
+              unoptimized={!!ministerStampUrl}
+            />
           </div>
         </div>
 
-        {/* Official Seal */}
-        <div className="flex items-center">
-          <div className="absolute -bottom-2 left-0 right-0 print:left-18 print:bottom-14">
-            <div className="relative w-[80px] h-[80px] print:w-[100px] print:h-[100px]">
-              <Image
-                src={ministerStampUrl || "/assets/moemw-logo.png"}
-                alt="Official Seal"
-                fill
-                style={{ objectFit: "contain" }}
-                unoptimized={!!ministerStampUrl}
+        {/* QR code (bottom-right) */}
+        {qrCodeUrl ? (
+          <div className="absolute right-[6.5%] bottom-[6.5%]">
+            <div className="border-2 border-blue-200 bg-white p-[3px]">
+              <QRCodeSVG
+                value={`${config.env.apiEndpoint}/verify-license?ref_id=${licenseNumber}`}
+                size={96}
+                level="H"
+                bgColor="#FFFFFF"
+                fgColor="#000000"
               />
             </div>
           </div>
-
-          {/* QR Code */}
-          <div>
-            {qrCodeUrl && (
-              <div className="absolute xlg:-bottom-12 bottom-6 right-14 print:bottom-1 print:right-4">
-                <div className="relative print:w-[140px] print:h-[140px] w-[30px] h-[30px]">
-                  <div className="border-2 border-blue-200 p-[3px] bg-white flex items-center justify-center w-fit">
-                    {/* Dynamic QR code generation based on license reference ID */}
-                    <QRCodeSVG
-                      value={`${config.env.apiEndpoint}/verify-license?ref_id=${licenseNumber}`}
-                      size={80}
-                      level="H"
-                      bgColor="#FFFFFF"
-                      fgColor="#000000"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Footer */}
-          <div className="absolute print:bottom-4 bottom-4 left-0 right-0 text-center">
-            <p className="font-medium leading-tight print:text-[20px] xlg:text-lg text-[13px] -mb-2">
-              Wasiirka Wasaaradda Tamarta, Macdanta Biyaha <br />
-              Ministry Of Energy Minerals and Water
-            </p>
-            <div className="flex justify-center">
-              {signature ? (
-                <div className="relative print:bottom-4 w-[140px] h-[70px] print:w-[230px] print:h-[110px]">
-                  <Image
-                    src={signerSignatureUrl || "/assets/signature.png"}
-                    alt="Signature"
-                    fill
-                    className="object-contain"
-                    unoptimized={!!signerSignatureUrl}
-                  />
-                </div>
-              ) : (
-                <div className="mt-8">
-                  <p>Signature</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+        ) : null}
       </div>
     </Card>
   );
