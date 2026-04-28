@@ -99,7 +99,8 @@ export default function LicenseDetails({
 
   const printPageStyle = `
       @page {
-        size: A4 landscape;
+        /* Force exact landscape paper box */
+        size: 297mm 210mm;
         margin: 0;
       }
 
@@ -109,6 +110,8 @@ export default function LicenseDetails({
         background: white !important;
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
+        width: 297mm;
+        height: 210mm;
       }
 
       /* Ensure the printed content uses the page area */
@@ -118,7 +121,9 @@ export default function LicenseDetails({
         width: 297mm;
         height: 210mm;
         overflow: hidden;
-        display: block;
+        display: flex;
+        align-items: stretch;
+        justify-content: stretch;
         padding: var(--print-safe-margin);
         box-sizing: border-box;
       }
@@ -134,8 +139,12 @@ export default function LicenseDetails({
         box-shadow: none !important;
         border: 0 !important;
         border-radius: 0 !important;
-        /* Render at true page size */
-        transform: none !important;
+        /* Remove shadcn Card padding/margins and fill page */
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        max-width: none !important;
       }
 
       /* Print-only: push certificate header down */
