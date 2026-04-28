@@ -55,7 +55,7 @@ export default function MiningLicense({
       {/* Overlay: normal flow layout (no absolute children) */}
       <div className="absolute inset-0 z-50 flex h-full flex-col">
         {/* Header (top band) */}
-        <div className="text-center mt-[65px] mx-[116px] mb-[22px]">
+        <div className="text-center mt-[42px] mx-[116px] mb-[22px]">
           <div className="grid grid-cols-3 items-start">
             <h2 className="text-[10px] sm:text-[11px] md:text-[12px] print:text-lg font-semibold leading-snug text-left">
               Dowladda Puntland ee Soomaaliya <br /> Wasaaradda Tamarta Macdanta
@@ -130,7 +130,7 @@ export default function MiningLicense({
         </div>
 
         {/* Bottom row: stamp / signature / QR (space-between) */}
-        <div className="mx-[116px] mb-[40px] mt-2 flex items-end justify-between">
+        <div className="mx-[116px] mb-[99px] mt-2 flex items-end justify-between">
           <div className="flex items-end">
             <div className="relative h-[72px] w-[72px] sm:h-[84px] sm:w-[84px] md:h-[96px] md:w-[96px] print:h-[100px] print:w-[100px]">
               <Image
