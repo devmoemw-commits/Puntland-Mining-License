@@ -116,6 +116,7 @@ export default function LicenseDetails({
         width: 297mm;
         height: 210mm;
         overflow: hidden;
+        display: block;
       }
 
       /* Avoid any app layout constraints in print */
