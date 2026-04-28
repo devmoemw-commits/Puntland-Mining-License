@@ -370,46 +370,6 @@ export default function LicenseDetails({
                   </DialogTrigger>
 
                   <DialogContent className="flex h-fit max-h-[96vh] w-fit max-w-[96vw] flex-col overflow-visible bg-white p-0 dark:bg-gray-800 gap-0">
-                    <DialogHeader>
-                      <DialogTitle className="border-b px-4 py-3 sm:px-6">
-                        <div className="flex flex-wrap justify-between items-center gap-3 capitalize">
-                          <div className="min-w-0">
-                            {license.company_name} -{" "}
-                            <span className="text-gray-500 text-sm break-all">
-                              {license.license_ref_id}
-                            </span>
-                          </div>
-
-                          {/* Signature Toggle - only for admin users */}
-                          {session?.user?.role === "MINISTER" || session?.user?.role === "GENERAL_DIRECTOR" && (
-                            <div className="flex items-center mr-10">
-                              <div className="flex items-center space-x-2">
-                                <p className="text-sm text-gray-500">
-                                  Signature
-                                </p>
-                                <div className="flex items-center space-x-1">
-                                  {isPending && (
-                                    <Loader2 className="h-3 w-3 animate-spin text-gray-500" />
-                                  )}
-                                  <input
-                                    type="checkbox"
-                                    className="ml-2 cursor-pointer"
-                                    checked={signature}
-                                    disabled={isPending}
-                                    onChange={(e) => {
-                                      const newValue = e.target.checked;
-                                      setSignature(newValue); // Optimistic update
-                                      handleSignatureToggle(newValue);
-                                    }}
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                          {/* Signature Toggle */}
-                        </div>
-                      </DialogTitle>
-                    </DialogHeader>
                     <div className="flex-1 min-h-0 overflow-auto px-2 py-3 sm:px-4">
                       <div ref={componentRef} className="mx-auto w-fit">
                         <MiningLicense
@@ -427,11 +387,33 @@ export default function LicenseDetails({
                         />
                       </div>
                     </div>
-                    <DialogFooter className="border-t bg-white px-4 py-3 sm:px-6 dark:bg-gray-800">
+                    <DialogFooter className="border-t bg-white px-4 py-3 sm:px-6 dark:bg-gray-800 sm:justify-between">
+                      {(session?.user?.role === "MINISTER" ||
+                        session?.user?.role === "GENERAL_DIRECTOR") && (
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm text-gray-500">Signature</p>
+                          <div className="flex items-center gap-1">
+                            {isPending && (
+                              <Loader2 className="h-3 w-3 animate-spin text-gray-500" />
+                            )}
+                            <input
+                              type="checkbox"
+                              className="ml-1 cursor-pointer"
+                              checked={signature}
+                              disabled={isPending}
+                              onChange={(e) => {
+                                const newValue = e.target.checked;
+                                setSignature(newValue); // Optimistic update
+                                handleSignatureToggle(newValue);
+                              }}
+                            />
+                          </div>
+                        </div>
+                      )}
                       <Button
                         variant="default"
                         onClick={handlePrint}
-                        className="w-full cursor-pointer"
+                        className="w-full cursor-pointer sm:w-auto"
                       >
                         <Printer />
                         Print Certificate

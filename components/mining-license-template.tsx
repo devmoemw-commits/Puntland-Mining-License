@@ -38,9 +38,8 @@ export default function MiningLicense({
   return (
     //w-[1080px] h-[768px]
     <Card
-      className="relative w-[960px] max-w-full
-                   aspect-[297/210] mx-auto p-3 sm:p-6 md:p-12 lg:p-16 xl:p-20 overflow-hidden text-[#04224c] 
-                   print:w-[297mm] print:h-[210mm] print:max-w-none print:aspect-auto print:p-[20mm]"
+      className="relative w-[960px] max-w-full aspect-[297/210] mx-auto overflow-hidden text-[#04224c]
+                 print:w-[297mm] print:h-[210mm] print:max-w-none print:aspect-auto print:p-0"
       style={{ fontFamily: "Times New Roman, Times, serif" }}
     >
       {/* Background Image - Kept separate */}
@@ -55,9 +54,9 @@ export default function MiningLicense({
       </div>
 
       {/* Content Container - Groups all content elements */}
-      <div className="relative z-50 h-full print:p-4">
+      <div className="relative z-50 h-full px-10 py-8 sm:px-12 sm:py-10 md:px-14 md:py-12 print:p-[20mm]">
         {/* Header Section */}
-        <div className="text-center w-[98%] mx-auto print:px-10 print:mt-8 -mt-3">
+        <div className="text-center w-full mx-auto print:px-10 print:mt-8">
           <div className="flex items-center justify-between">
             <h2 className="xlg:text-[13px] text-[10px] print:text-lg  font-semibold leading-tight">
               Dowladda Puntland ee Soomaaliya <br /> Wasaaradda Tamarta Macdanta
@@ -87,14 +86,14 @@ export default function MiningLicense({
         </div>
 
         {/* Description */}
-        <p className="mt-0 print:mt-1 text-center print:text-xl xlg:text-lg text-[13px]">
+        <p className="mt-1 print:mt-1 text-center print:text-xl xlg:text-lg text-[13px]">
           Wasaaradda Tamarta Macdanta iyo Biyaha waxay shatiga ganacsiga
           macdanta u oggolaatay <br />
           Ministry of Energy Minerals & Water has granted the mining license
         </p>
 
         {/* License Details */}
-        <div className="mt-3 print:mt-4 capitalize space-y-2 xlg:text-lg text-[13px] print:text-[20px] print:px-32 xlg:px-18 px-12  print:leading-7 xlg:leading-none leading-4">
+        <div className="mt-4 print:mt-4 capitalize space-y-2 xlg:text-lg text-[13px] print:text-[20px] print:px-32 px-6 sm:px-10 md:px-12 print:leading-7 xlg:leading-none leading-4">
           <p>{licenseNumber}</p>
           <p>
             Shirkadda/Company:{" "}
@@ -157,7 +156,7 @@ export default function MiningLicense({
           </div>
 
           {/* Footer */}
-          <div className="absolute print:bottom-4 -bottom-4 left-0 right-0 text-center">
+          <div className="absolute print:bottom-4 bottom-4 left-0 right-0 text-center">
             <p className="font-medium leading-tight print:text-[20px] xlg:text-lg text-[13px] -mb-2">
               Wasiirka Wasaaradda Tamarta, Macdanta Biyaha <br />
               Ministry Of Energy Minerals and Water
@@ -174,7 +173,7 @@ export default function MiningLicense({
                   />
                 </div>
               ) : (
-                <div className="mt-12">
+                <div className="mt-8">
                   <p>Signature</p>
                 </div>
               )}
