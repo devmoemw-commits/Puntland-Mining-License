@@ -369,7 +369,7 @@ export default function LicenseDetails({
                       : "Not Available"}
                   </DialogTrigger>
 
-                  <DialogContent className="flex h-fit max-h-[96vh] w-fit max-w-[96vw] flex-col overflow-hidden bg-white p-0 dark:bg-gray-800">
+                  <DialogContent className="flex h-fit max-h-[96vh] w-fit max-w-[96vw] flex-col overflow-visible bg-white p-0 dark:bg-gray-800 gap-0">
                     <DialogHeader>
                       <DialogTitle className="border-b px-4 py-3 sm:px-6">
                         <div className="flex flex-wrap justify-between items-center gap-3 capitalize">
@@ -410,7 +410,7 @@ export default function LicenseDetails({
                         </div>
                       </DialogTitle>
                     </DialogHeader>
-                    <div className="overflow-auto px-2 py-3 sm:px-4">
+                    <div className="flex-1 min-h-0 overflow-auto px-2 py-3 sm:px-4">
                       <div ref={componentRef} className="mx-auto w-fit">
                         <MiningLicense
                           license_category={license.license_category}
