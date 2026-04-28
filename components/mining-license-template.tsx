@@ -56,7 +56,7 @@ export default function MiningLicense({
       <div className="absolute inset-0 z-50 flex h-full flex-col">
         {/* Header (top band) */}
         <div
-          className="text-center print:!mt-[24mm] print:!mx-[20mm] print:!mb-[6mm]"
+          className="text-center"
           style={{ margin: "110px 116px 22px" }}
         >
           <div className="grid grid-cols-3 items-start">
@@ -98,7 +98,7 @@ export default function MiningLicense({
 
         {/* Main dynamic block */}
         <div
-          className="space-y-2 text-[11px] sm:text-[12px] md:text-[13px] print:text-[16px] leading-snug capitalize print:!mx-[20mm]"
+          className="space-y-2 text-[11px] sm:text-[12px] md:text-[13px] print:text-[16px] leading-snug capitalize"
           style={{ margin: "0 129px" }}
         >
           <p className="font-medium">{licenseNumber}</p>
@@ -121,7 +121,7 @@ export default function MiningLicense({
 
         {/* Expiry date (right aligned) */}
         <div
-          className="text-[11px] sm:text-[12px] md:text-[13px] print:text-[16px] leading-snug text-red-600 flex justify-end print:!mr-[20mm]"
+          className="text-[11px] sm:text-[12px] md:text-[13px] print:text-[16px] leading-snug text-red-600 flex justify-end"
           style={{ marginRight: 137 }}
         >
           Date Of Expiry:{" "}
@@ -140,7 +140,7 @@ export default function MiningLicense({
 
         {/* Bottom row: stamp / signature / QR (space-between) */}
         <div
-          className="mt-2 flex items-end justify-between print:!mx-[20mm] print:!mb-[20mm]"
+          className="mt-2 flex items-end justify-between"
           style={{ margin: "8px 116px 99px" }}
         >
           <div className="flex items-end">
