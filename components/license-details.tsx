@@ -100,6 +100,40 @@ export default function LicenseDetails({
   const handlePrint = useReactToPrint({
     documentTitle: `WTMB-${license.company_name}`,
     contentRef: componentRef,
+    pageStyle: `
+      @page {
+        size: A4 landscape;
+        margin: 0;
+      }
+
+      html, body {
+        margin: 0 !important;
+        padding: 0 !important;
+        background: white !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      /* Ensure the printed content uses the page area */
+      body {
+        width: 297mm;
+        height: 210mm;
+        overflow: hidden;
+      }
+
+      /* Avoid any app layout constraints in print */
+      #__next, #root {
+        width: 100% !important;
+        height: 100% !important;
+      }
+
+      /* Print the certificate at its intended paper size */
+      [data-slot="card"] {
+        box-shadow: none !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+      }
+    `,
   });
 
   // Calculate days remaining until expiration
