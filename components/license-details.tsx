@@ -143,6 +143,12 @@ export default function LicenseDetails({
       .certificate-header {
         margin-top: 28mm !important;
       }
+
+      /* Print-only: add inner margin for dynamic data */
+      .certificate-overlay {
+        padding: 10mm 12mm;
+        box-sizing: border-box;
+      }
     `;
 
   const handlePrint = useReactToPrint({

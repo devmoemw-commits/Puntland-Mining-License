@@ -53,7 +53,7 @@ export default function MiningLicense({
       </div>
 
       {/* Overlay: normal flow layout (no absolute children) */}
-      <div className="absolute inset-0 z-50 flex h-full flex-col">
+      <div className="absolute inset-0 z-50 flex h-full flex-col certificate-overlay">
         {/* Header (top band) */}
         <div
           className="text-center certificate-header"
