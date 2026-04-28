@@ -38,7 +38,7 @@ export default function MiningLicense({
   return (
     <Card
       className="relative w-[960px] max-w-full aspect-[297/210] mx-auto overflow-hidden text-[#04224c]
-                 print:w-[297mm] print:h-[210mm] print:max-w-none print:aspect-auto print:p-0"
+                 print:w-[297mm] print:h-[210mm] print:max-w-none print:aspect-auto print:p-0 print:border-0 print:shadow-none print:rounded-none"
       style={{ fontFamily: "Times New Roman, Times, serif" }}
     >
       {/* Background Image - Kept separate */}
@@ -55,7 +55,7 @@ export default function MiningLicense({
       {/* Overlay: normal flow layout (no absolute children) */}
       <div className="absolute inset-0 z-50 flex h-full flex-col">
         {/* Header (top band) */}
-        <div className="text-center mt-[42px] mx-[116px] mb-[22px]">
+        <div className="text-center mt-[42px] mx-[116px] mb-[22px] print:mt-[20mm] print:mx-[20mm] print:mb-[6mm]">
           <div className="grid grid-cols-3 items-start">
             <h2 className="text-[10px] sm:text-[11px] md:text-[12px] print:text-lg font-semibold leading-snug text-left">
               Dowladda Puntland ee Soomaaliya <br /> Wasaaradda Tamarta Macdanta
@@ -94,7 +94,7 @@ export default function MiningLicense({
         </div>
 
         {/* Main dynamic block */}
-        <div className="space-y-2 text-[12px] sm:text-[13px] md:text-[14px] print:text-[20px] leading-snug capitalize mx-[129px]">
+        <div className="space-y-2 text-[12px] sm:text-[13px] md:text-[14px] print:text-[20px] leading-snug capitalize mx-[129px] print:mx-[20mm]">
           <p className="font-medium">{licenseNumber}</p>
           <p>
             Shirkadda/Company:{" "}
@@ -114,7 +114,7 @@ export default function MiningLicense({
         </div>
 
         {/* Expiry date (right aligned) */}
-        <div className="text-[12px] sm:text-[13px] md:text-[14px] print:text-[20px] leading-snug text-red-600 flex justify-end mr-[137px]">
+        <div className="text-[12px] sm:text-[13px] md:text-[14px] print:text-[20px] leading-snug text-red-600 flex justify-end mr-[137px] print:mr-[20mm]">
           Date Of Expiry:{" "}
           <span className="font-semibold">{expiryDateFormatted}</span>
         </div>
@@ -130,7 +130,7 @@ export default function MiningLicense({
         </div>
 
         {/* Bottom row: stamp / signature / QR (space-between) */}
-        <div className="mx-[116px] mb-[99px] mt-2 flex items-end justify-between">
+        <div className="mx-[116px] mb-[99px] mt-2 flex items-end justify-between print:mx-[20mm] print:mb-[20mm]">
           <div className="flex items-end">
             <div className="relative h-[72px] w-[72px] sm:h-[84px] sm:w-[84px] md:h-[96px] md:w-[96px] print:h-[100px] print:w-[100px]">
               <Image
