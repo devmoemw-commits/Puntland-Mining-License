@@ -60,7 +60,7 @@ export default function MiningLicense({
           style={{ margin: "110px 116px 22px" }}
         >
           <div className="grid grid-cols-3 items-start">
-            <h2 className="text-[10px] sm:text-[11px] md:text-[12px] print:text-lg font-semibold leading-snug text-left">
+            <h2 className="text-[9px] sm:text-[10px] md:text-[11px] print:text-base font-semibold leading-snug text-left">
               Dowladda Puntland ee Soomaaliya <br /> Wasaaradda Tamarta Macdanta
               & Biyaha <br /> Xafiiska Wasiirka
             </h2>
@@ -74,22 +74,22 @@ export default function MiningLicense({
                 />
               </div>
             </div>
-            <h2 className="text-[10px] sm:text-[11px] md:text-[12px] print:text-lg font-semibold leading-snug text-right">
+            <h2 className="text-[9px] sm:text-[10px] md:text-[11px] print:text-base font-semibold leading-snug text-right">
               Puntland State of Somalia <br /> Ministry of Energy Minerals &
               Water <br /> Office of the Minister
             </h2>
           </div>
 
           <div className="mt-1 leading-tight">
-            <h1 className="text-[10px] sm:text-sm md:text-base print:text-2xl font-bold m-0">
+            <h1 className="text-[9px] sm:text-[13px] md:text-sm print:text-xl font-bold m-0">
               SHATIGA KA GANACSIGA MACDANTA
             </h1>
-            <h1 className="text-[10px] sm:text-sm md:text-base print:text-2xl font-bold">
+            <h1 className="text-[9px] sm:text-[13px] md:text-sm print:text-xl font-bold">
               MINING LICENSE
             </h1>
           </div>
 
-          <p className="text-[11px] sm:text-[12px] md:text-[13px] print:text-xl leading-snug">
+          <p className="text-[10px] sm:text-[11px] md:text-[12px] print:text-base leading-snug">
             Wasaaradda Tamarta Macdanta iyo Biyaha waxay shatiga ganacsiga
             macdanta u oggolaatay <br />
             Ministry of Energy Minerals & Water has granted the mining license
@@ -98,7 +98,7 @@ export default function MiningLicense({
 
         {/* Main dynamic block */}
         <div
-          className="space-y-2 text-[12px] sm:text-[13px] md:text-[14px] print:text-[20px] leading-snug capitalize print:!mx-[20mm]"
+          className="space-y-2 text-[11px] sm:text-[12px] md:text-[13px] print:text-[16px] leading-snug capitalize print:!mx-[20mm]"
           style={{ margin: "0 129px" }}
         >
           <p className="font-medium">{licenseNumber}</p>
@@ -121,7 +121,7 @@ export default function MiningLicense({
 
         {/* Expiry date (right aligned) */}
         <div
-          className="text-[12px] sm:text-[13px] md:text-[14px] print:text-[20px] leading-snug text-red-600 flex justify-end print:!mr-[20mm]"
+          className="text-[11px] sm:text-[12px] md:text-[13px] print:text-[16px] leading-snug text-red-600 flex justify-end print:!mr-[20mm]"
           style={{ marginRight: 137 }}
         >
           Date Of Expiry:{" "}
@@ -132,7 +132,7 @@ export default function MiningLicense({
 
         {/* Footer caption */}
         <div className="text-center">
-          <p className="text-[11px] sm:text-[12px] md:text-[13px] print:text-[20px] font-medium leading-tight">
+          <p className="text-[10px] sm:text-[11px] md:text-[12px] print:text-[16px] font-medium leading-tight">
             Wasiirka Wasaaradda Tamarta, Macdanta Biyaha <br />
             Ministry Of Energy Minerals and Water
           </p>
