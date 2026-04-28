@@ -114,7 +114,7 @@ export default function LicenseDetails({
       /* Ensure the printed content uses the page area */
       body {
         /* Add a comfortable print margin without reflow */
-        --print-safe-margin: 20mm;
+        --print-safe-margin: 25mm;
         width: 297mm;
         height: 210mm;
         overflow: hidden;
@@ -135,7 +135,7 @@ export default function LicenseDetails({
         border: 0 !important;
         border-radius: 0 !important;
         /* Fit inside the safe margin area */
-        transform: scale(0.84);
+        transform: scale(0.78);
         transform-origin: top left;
       }
 
