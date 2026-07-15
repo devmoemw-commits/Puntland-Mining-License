@@ -24,6 +24,8 @@ type LicenseWorkflowView = {
   workflowCode: string;
   currentStepNumber: number;
   isCompleted: boolean;
+  /** True when the workflow defines a dedicated signature step (assigned signer). */
+  hasSignatureStep: boolean;
   nextStep: {
     kind: "TRANSITION" | "SIGNATURE";
     fromStatus: string;
@@ -205,6 +207,7 @@ async function getLicenseWorkflowByLicenseId(
     toStatus: string;
     allowedRoles: string[];
   } | null = null;
+  let hasSignatureStep = false;
   try {
     const definitionSource =
       instanceRow.instance.definitionSnapshot ??
@@ -223,6 +226,7 @@ async function getLicenseWorkflowByLicenseId(
       const ordered = definition.steps
         .slice()
         .sort((a, b) => Number(a.stepNumber ?? 0) - Number(b.stepNumber ?? 0));
+      hasSignatureStep = ordered.some((s) => s.kind === "SIGNATURE");
       const roleCodes = Array.from(
         new Set(
           ordered.flatMap((step) =>
@@ -296,6 +300,7 @@ async function getLicenseWorkflowByLicenseId(
     workflowName: instanceRow.workflow.name,
     workflowCode: instanceRow.workflow.code,
     currentStepNumber: instanceRow.instance.currentStepNumber,
+    hasSignatureStep,
     isCompleted:
       instanceRow.instance.isCompleted ||
       (!instanceRow.instance.definitionSnapshot &&
@@ -337,7 +342,15 @@ const Page = async ({ params }: Props) => {
   ]);
 
   let signerSignatureUrl: string | null = null;
-  if (license.signature && license.signed_by_user_id) {
+  if (workflow?.hasSignatureStep) {
+    // When the workflow defines a signature step, only the assigned signer's
+    // signature (captured on that step) may appear on the certificate — never the approver's.
+    const signatureTransition = workflow.transitions.find(
+      (t) => t.fromStatus === t.toStatus && !!t.actedBySignatureUrl,
+    );
+    signerSignatureUrl = signatureTransition?.actedBySignatureUrl ?? null;
+  } else if (license.signature && license.signed_by_user_id) {
+    // Legacy workflows without a signature step keep the approving signer's signature.
     const signer = await db
       .select({ url: users.signatureImageUrl })
       .from(users)

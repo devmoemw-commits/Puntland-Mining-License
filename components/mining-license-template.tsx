@@ -156,14 +156,14 @@ export default function MiningLicense({
           </div>
 
           <div className="flex flex-1 justify-center">
-            {signature ? (
+            {signature && signerSignatureUrl ? (
               <div className="relative h-[56px] w-[140px] sm:h-[64px] sm:w-[170px] md:h-[72px] md:w-[190px] print:h-[110px] print:w-[230px]">
                 <Image
-                  src={signerSignatureUrl || "/assets/signature.png"}
+                  src={signerSignatureUrl}
                   alt="Signature"
                   fill
                   className="object-contain"
-                  unoptimized={!!signerSignatureUrl}
+                  unoptimized
                 />
               </div>
             ) : (
