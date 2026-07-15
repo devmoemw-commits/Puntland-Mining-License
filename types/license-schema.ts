@@ -244,3 +244,10 @@ export const signWorkflowStepSchema = z.object({
 })
 
 export type SignWorkflowStepInput = z.infer<typeof signWorkflowStepSchema>
+
+// Schema for admin-only license actions (delete / revoke) that only need the license id
+export const adminLicenseActionSchema = z.object({
+  id: z.string().uuid("Invalid license ID"),
+})
+
+export type AdminLicenseActionInput = z.infer<typeof adminLicenseActionSchema>

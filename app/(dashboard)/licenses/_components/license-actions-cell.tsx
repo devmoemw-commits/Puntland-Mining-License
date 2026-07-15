@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Eye, MoreHorizontal, Pencil, X } from "lucide-react"
+import { Ban, Eye, MoreHorizontal, Pencil, Trash2, X } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,7 +15,11 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { toast } from "sonner"
-import { UpdateLicenseStatus } from "@/lib/actions/licenses.action"
+import {
+  AdminDeleteLicense,
+  AdminRevokeLicense,
+  UpdateLicenseStatus,
+} from "@/lib/actions/licenses.action"
 import type { License } from "../column"
 import { Permissions } from "@/lib/permissions"
 
@@ -30,6 +34,41 @@ export function LicenseActionsCell({ license }: LicenseActionsCellProps) {
 
   const permissionCodes = session?.user?.permissionCodes ?? []
   const hasPermission = (permission: string) => permissionCodes.includes(permission)
+
+  // Delete/revoke are restricted to SUPER_ADMIN users holding the moderation permission.
+  const isSuperAdmin = (session?.user?.role ?? "").toUpperCase() === "SUPER_ADMIN"
+  const canAdminManage = isSuperAdmin && hasPermission(Permissions.LICENSE_MODERATE)
+
+  const handleRevoke = async () => {
+    setIsDropdownOpen(false)
+    if (!window.confirm("Revoke this license's approval signature?")) return
+
+    const result = await AdminRevokeLicense({ id: license.id })
+    if (result?.data?.error) {
+      toast.error(String(result.data.error))
+      return
+    }
+    toast.success("License revoked successfully")
+    router.refresh()
+  }
+
+  const handleDelete = async () => {
+    setIsDropdownOpen(false)
+    if (
+      !window.confirm(
+        "Permanently delete this license? This cannot be undone and removes its workflow history.",
+      )
+    )
+      return
+
+    const result = await AdminDeleteLicense({ id: license.id })
+    if (result?.data?.error) {
+      toast.error(String(result.data.error))
+      return
+    }
+    toast.success("License deleted successfully")
+    router.refresh()
+  }
 
   // Handle status update
   const handleStatusUpdate = async (newStatus: "REVIEW" | "REJECTED") => {
@@ -125,6 +164,29 @@ export function LicenseActionsCell({ license }: LicenseActionsCellProps) {
                   Reject
                 </DropdownMenuItem>
               )}
+            </>
+          )}
+
+          {/* Admin-only destructive actions */}
+          {canAdminManage && (
+            <>
+              <DropdownMenuSeparator />
+              {license.status === "APPROVED" && (
+                <DropdownMenuItem
+                  onClick={handleRevoke}
+                  className="text-amber-600 focus:text-amber-600 focus:bg-amber-50 dark:focus:bg-amber-950"
+                >
+                  <Ban className="mr-2 h-4 w-4" />
+                  Revoke
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem
+                onClick={handleDelete}
+                className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
+              </DropdownMenuItem>
             </>
           )}
         </DropdownMenuContent>

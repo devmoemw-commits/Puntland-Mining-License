@@ -10,6 +10,7 @@ import {
 } from "@/database/schema";
 import { actionClient } from "@/lib/safe-action";
 import {
+  adminLicenseActionSchema,
   deleteLicenseSchema,
   licensesSchema,
   signWorkflowStepSchema,
@@ -296,6 +297,79 @@ export const DeleteLicense = actionClient
     }
 
     return dataDeletionBlockedResult();
+  });
+
+/**
+ * Restricted admin-only capability: only SUPER_ADMIN users holding LICENSE_MODERATE
+ * may permanently delete or revoke a license. Enforced here (not just in the UI).
+ */
+async function requireLicenseAdmin(): Promise<
+  { error: string } | { ok: true; userId: string }
+> {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "Unauthorized" };
+  if (session.user.role !== "SUPER_ADMIN") return { error: "Forbidden" };
+  const denied = await requireActionPermission(Permissions.LICENSE_MODERATE);
+  if (denied) return { error: denied };
+  return { ok: true, userId: session.user.id };
+}
+
+// Admin-only: permanently delete a license (workflow instance/transitions cascade).
+export const AdminDeleteLicense = actionClient
+  .schema(adminLicenseActionSchema)
+  .action(async ({ parsedInput: { id } }) => {
+    const guard = await requireLicenseAdmin();
+    if ("error" in guard) return { error: guard.error };
+
+    try {
+      const [existing] = await db
+        .select({ id: licenses.id })
+        .from(licenses)
+        .where(eq(licenses.id, id))
+        .limit(1);
+      if (!existing) return { error: "License not found" };
+
+      await db.delete(licenses).where(eq(licenses.id, id));
+      return { success: "License deleted successfully" };
+    } catch (error) {
+      console.error("Error deleting license:", error);
+      return {
+        error: `Failed to delete license: ${error instanceof Error ? error.message : String(error)}`,
+      };
+    }
+  });
+
+// Admin-only: revoke a license by clearing its approval signature.
+export const AdminRevokeLicense = actionClient
+  .schema(adminLicenseActionSchema)
+  .action(async ({ parsedInput: { id } }) => {
+    const guard = await requireLicenseAdmin();
+    if ("error" in guard) return { error: guard.error };
+
+    try {
+      const [existing] = await db
+        .select({ id: licenses.id })
+        .from(licenses)
+        .where(eq(licenses.id, id))
+        .limit(1);
+      if (!existing) return { error: "License not found" };
+
+      await db
+        .update(licenses)
+        .set({
+          signature: false,
+          signed_by_user_id: null,
+          updated_at: new Date(),
+        })
+        .where(eq(licenses.id, id));
+
+      return { success: "License revoked successfully" };
+    } catch (error) {
+      console.error("Error revoking license:", error);
+      return {
+        error: `Failed to revoke license: ${error instanceof Error ? error.message : String(error)}`,
+      };
+    }
   });
 
 // Update license approval status

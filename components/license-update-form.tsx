@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { SearchableSelect } from "@/components/ui/searchable-select"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { UpdateLicense } from "@/lib/actions/licenses.action"
@@ -359,25 +359,26 @@ export function LicenseUpdateForm({ license, onSuccess }: LicenseUpdateFormProps
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Business Type</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl className="w-full">
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select business type" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {/* Keep the current value selectable even if it was later deactivated */}
-                            {field.value &&
-                              !businessTypeOptions.some((t) => t.name === field.value) && (
-                                <SelectItem value={field.value}>{field.value}</SelectItem>
-                              )}
-                            {businessTypeOptions.map((type) => (
-                              <SelectItem key={type.id} value={type.name}>
-                                {type.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <FormControl>
+                          <SearchableSelect
+                            options={[
+                              // Keep the current value selectable even if it was later deactivated
+                              ...(field.value &&
+                              !businessTypeOptions.some((t) => t.name === field.value)
+                                ? [{ value: field.value, label: field.value }]
+                                : []),
+                              ...businessTypeOptions.map((type) => ({
+                                value: type.name,
+                                label: type.name,
+                              })),
+                            ]}
+                            value={field.value}
+                            onChange={field.onChange}
+                            placeholder="Select business type"
+                            searchPlaceholder="Search business types..."
+                            emptyText="No business type found."
+                          />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -405,20 +406,20 @@ export function LicenseUpdateForm({ license, onSuccess }: LicenseUpdateFormProps
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Region</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value} disabled={isLoading}>
-                          <FormControl className="w-full">
-                            <SelectTrigger>
-                              <SelectValue placeholder={isLoading ? "Loading regions..." : "Select region"} />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {regions.map((region) => (
-                              <SelectItem key={region.id} value={region.id}>
-                                {region.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <FormControl>
+                          <SearchableSelect
+                            options={regions.map((region) => ({
+                              value: region.id,
+                              label: region.name,
+                            }))}
+                            value={field.value}
+                            onChange={field.onChange}
+                            disabled={isLoading}
+                            placeholder={isLoading ? "Loading regions..." : "Select region"}
+                            searchPlaceholder="Search regions..."
+                            emptyText="No region found."
+                          />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -430,34 +431,28 @@ export function LicenseUpdateForm({ license, onSuccess }: LicenseUpdateFormProps
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>District</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          value={field.value}
-                          disabled={isLoading || !selectedRegion || filteredDistricts.length === 0}
-                        >
-                          <FormControl className="w-full">
-                            <SelectTrigger>
-                              <SelectValue
-                                placeholder={
-                                  isLoading
-                                    ? "Loading districts..."
-                                    : !selectedRegion
-                                      ? "Select region first"
-                                      : filteredDistricts.length === 0
-                                        ? "No districts available"
-                                        : "Select district"
-                                }
-                              />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {filteredDistricts.map((district) => (
-                              <SelectItem key={district.id} value={district.id}>
-                                {district.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <FormControl>
+                          <SearchableSelect
+                            options={filteredDistricts.map((district) => ({
+                              value: district.id,
+                              label: district.name,
+                            }))}
+                            value={field.value}
+                            onChange={field.onChange}
+                            disabled={isLoading || !selectedRegion || filteredDistricts.length === 0}
+                            placeholder={
+                              isLoading
+                                ? "Loading districts..."
+                                : !selectedRegion
+                                  ? "Select region first"
+                                  : filteredDistricts.length === 0
+                                    ? "No districts available"
+                                    : "Select district"
+                            }
+                            searchPlaceholder="Search districts..."
+                            emptyText="No district found."
+                          />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -642,20 +637,16 @@ export function LicenseUpdateForm({ license, onSuccess }: LicenseUpdateFormProps
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>License Type</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl className="w-full">
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select license type" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {LICENSE_TYPES.map((type) => (
-                              <SelectItem key={type} value={type}>
-                                {type}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <FormControl>
+                          <SearchableSelect
+                            options={LICENSE_TYPES.map((type) => ({ value: type, label: type }))}
+                            value={field.value}
+                            onChange={field.onChange}
+                            placeholder="Select license type"
+                            searchPlaceholder="Search license types..."
+                            emptyText="No license type found."
+                          />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -667,25 +658,26 @@ export function LicenseUpdateForm({ license, onSuccess }: LicenseUpdateFormProps
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>License Category</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl className="w-full">
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select license category" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {/* Keep the current value selectable even if it was later deactivated */}
-                            {field.value &&
-                              !categories.some((c) => c.name === field.value) && (
-                                <SelectItem value={field.value}>{field.value}</SelectItem>
-                              )}
-                            {categories.map((category) => (
-                              <SelectItem key={category.id} value={category.name}>
-                                {category.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <FormControl>
+                          <SearchableSelect
+                            options={[
+                              // Keep the current value selectable even if it was later deactivated
+                              ...(field.value &&
+                              !categories.some((c) => c.name === field.value)
+                                ? [{ value: field.value, label: field.value }]
+                                : []),
+                              ...categories.map((category) => ({
+                                value: category.name,
+                                label: category.name,
+                              })),
+                            ]}
+                            value={field.value}
+                            onChange={field.onChange}
+                            placeholder="Select license category"
+                            searchPlaceholder="Search categories..."
+                            emptyText="No category found."
+                          />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}

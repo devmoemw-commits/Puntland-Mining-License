@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { SearchableSelect } from "@/components/ui/searchable-select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 
@@ -135,29 +135,26 @@ const StepFour = ({ onNext, onBack, formData }: StepFourProps) => {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>License Type</FormLabel>
-                    <Select
-                      value={field.value}
-                      onValueChange={(value) => {
-                        field.onChange(value)
-                        // Reset category when type changes
-                        setValue("license_category", "", {
-                          shouldValidate: false,
-                        })
-                      }}
-                    >
-                      <FormControl>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select license type" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {licenseTypes.map((type) => (
-                          <SelectItem key={type} value={type}>
-                            {type === "New License" ? "New License (Shatiga Cusub)" : "Renewal (Cusboonaysiin)"}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FormControl>
+                      <SearchableSelect
+                        options={licenseTypes.map((type) => ({
+                          value: type,
+                          label:
+                            type === "New License"
+                              ? "New License (Shatiga Cusub)"
+                              : "Renewal (Cusboonaysiin)",
+                        }))}
+                        value={field.value}
+                        onChange={(value) => {
+                          field.onChange(value)
+                          // Reset category when type changes
+                          setValue("license_category", "", { shouldValidate: false })
+                        }}
+                        placeholder="Select license type"
+                        searchPlaceholder="Search license types..."
+                        emptyText="No license type found."
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -169,32 +166,26 @@ const StepFour = ({ onNext, onBack, formData }: StepFourProps) => {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>License Category</FormLabel>
-                    <Select
-                      value={field.value}
-                      onValueChange={field.onChange}
-                      disabled={!license_type || categoriesLoading}
-                    >
-                      <FormControl>
-                        <SelectTrigger className="w-full">
-                          <SelectValue
-                            placeholder={
-                              categoriesLoading
-                                ? "Loading categories..."
-                                : license_type
-                                  ? "Select license category"
-                                  : "Select license type first"
-                            }
-                          />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {categories.map((category) => (
-                          <SelectItem key={category.id} value={category.name}>
-                            {category.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FormControl>
+                      <SearchableSelect
+                        options={categories.map((category) => ({
+                          value: category.name,
+                          label: category.name,
+                        }))}
+                        value={field.value}
+                        onChange={field.onChange}
+                        disabled={!license_type || categoriesLoading}
+                        placeholder={
+                          categoriesLoading
+                            ? "Loading categories..."
+                            : license_type
+                              ? "Select license category"
+                              : "Select license type first"
+                        }
+                        searchPlaceholder="Search categories..."
+                        emptyText="No category found."
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}

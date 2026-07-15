@@ -7,7 +7,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Building, Building2, MapIcon, MapPin, MapPinHouse } from "lucide-react"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { SearchableSelect } from "@/components/ui/searchable-select"
 
 import { firstStepSchema } from "@/types/license-schema"
 import type { z } from "zod"
@@ -172,18 +172,16 @@ const StepOne = ({ onNext, formData }: StepOneProps) => {
                   <div className="relative">
                     <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 z-10" />
                     <FormControl>
-                      <Select onValueChange={field.onChange} value={field.value} disabled={loading}>
-                        <SelectTrigger className="pl-10 w-full capitalize">
-                          <SelectValue placeholder="Select business type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {businessTypes.map((type) => (
-                            <SelectItem key={type.id} value={type.name}>
-                              {type.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <SearchableSelect
+                        options={businessTypes.map((type) => ({ value: type.name, label: type.name }))}
+                        value={field.value}
+                        onChange={field.onChange}
+                        disabled={loading}
+                        placeholder="Select business type"
+                        searchPlaceholder="Search business types..."
+                        emptyText="No business type found."
+                        triggerClassName="pl-10 capitalize"
+                      />
                     </FormControl>
                   </div>
                   <FormMessage />
@@ -221,18 +219,16 @@ const StepOne = ({ onNext, formData }: StepOneProps) => {
                   <div className="relative">
                     <MapIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 z-10" />
                     <FormControl>
-                      <Select onValueChange={field.onChange} value={field.value} disabled={loading}>
-                        <SelectTrigger className="pl-10 w-full capitalize">
-                          <SelectValue placeholder="Select region" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {regions.map((region) => (
-                            <SelectItem key={region.id} value={region.id} className="capitalize">
-                              {region.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <SearchableSelect
+                        options={regions.map((region) => ({ value: region.id, label: region.name }))}
+                        value={field.value}
+                        onChange={field.onChange}
+                        disabled={loading}
+                        placeholder="Select region"
+                        searchPlaceholder="Search regions..."
+                        emptyText="No region found."
+                        triggerClassName="pl-10 capitalize"
+                      />
                     </FormControl>
                   </div>
                   <FormMessage />
@@ -251,26 +247,19 @@ const StepOne = ({ onNext, formData }: StepOneProps) => {
                   <div className="relative">
                     <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 z-10" />
                     <FormControl>
-                      <Select onValueChange={field.onChange} value={field.value} disabled={!selectedRegion || loading}>
-                        <SelectTrigger className="pl-10 w-full capitalize">
-                          <SelectValue placeholder={selectedRegion ? "Select district" : "Choose region first"} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {!selectedRegion ? (
-                            <div className="px-2 py-4 text-sm text-gray-500 text-center">
-                              Please select a region first
-                            </div>
-                          ) : filteredDistricts.length > 0 ? (
-                            filteredDistricts.map((district) => (
-                              <SelectItem key={district.id} value={district.id} className="capitalize">
-                                {district.name}
-                              </SelectItem>
-                            ))
-                          ) : (
-                            <div className="px-2 py-4 text-sm text-gray-500 text-center">No districts found</div>
-                          )}
-                        </SelectContent>
-                      </Select>
+                      <SearchableSelect
+                        options={filteredDistricts.map((district) => ({
+                          value: district.id,
+                          label: district.name,
+                        }))}
+                        value={field.value}
+                        onChange={field.onChange}
+                        disabled={!selectedRegion || loading}
+                        placeholder={selectedRegion ? "Select district" : "Choose region first"}
+                        searchPlaceholder="Search districts..."
+                        emptyText="No districts found."
+                        triggerClassName="pl-10 capitalize"
+                      />
                     </FormControl>
                   </div>
                   <FormMessage />
