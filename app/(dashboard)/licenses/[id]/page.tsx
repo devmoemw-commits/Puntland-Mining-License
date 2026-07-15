@@ -25,6 +25,7 @@ type LicenseWorkflowView = {
   currentStepNumber: number;
   isCompleted: boolean;
   nextStep: {
+    kind: "TRANSITION" | "SIGNATURE";
     fromStatus: string;
     toStatus: string;
     allowedRoles: string[];
@@ -199,6 +200,7 @@ async function getLicenseWorkflowByLicenseId(
     userSignatureUrl: string | null;
   }[] = [];
   let nextStep: {
+    kind: "TRANSITION" | "SIGNATURE";
     fromStatus: string;
     toStatus: string;
     allowedRoles: string[];
@@ -210,6 +212,7 @@ async function getLicenseWorkflowByLicenseId(
     const definition = JSON.parse(definitionSource) as {
       steps?: Array<{
         stepNumber?: number;
+        kind?: string;
         from?: string;
         to?: string;
         roles?: string[];
@@ -265,16 +268,20 @@ async function getLicenseWorkflowByLicenseId(
         }));
       }
 
+      // The immediate next step (by number); only actionable if it starts at the current status.
       const step = ordered.find(
-        (s) =>
-          String(s.from ?? "").toUpperCase() ===
-            currentLicenseStatus.toUpperCase() &&
-          Number(s.stepNumber ?? 0) > instanceRow.instance.currentStepNumber,
+        (s) => Number(s.stepNumber ?? 0) > instanceRow.instance.currentStepNumber,
       );
-      if (step) {
+      if (
+        step &&
+        String(step.from ?? "").toUpperCase() === currentLicenseStatus.toUpperCase()
+      ) {
+        const kind = step.kind === "SIGNATURE" ? "SIGNATURE" : "TRANSITION";
         nextStep = {
+          kind,
           fromStatus: String(step.from ?? ""),
-          toStatus: String(step.to ?? ""),
+          // A signature step keeps the current status.
+          toStatus: kind === "SIGNATURE" ? String(step.from ?? "") : String(step.to ?? ""),
           allowedRoles: Array.isArray(step.roles)
             ? step.roles.map((r) => String(r).trim().toUpperCase()).filter(Boolean)
             : [],

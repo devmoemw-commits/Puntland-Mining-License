@@ -31,8 +31,11 @@ type Props = {
   roleOptions: { code: string; name: string }[];
 };
 
+type WorkflowStepKind = "TRANSITION" | "SIGNATURE";
+
 type WorkflowStep = {
   stepNumber: number;
+  kind: WorkflowStepKind;
   fromStatus: "PENDING" | "REVIEW" | "APPROVED" | "REJECTED";
   toStatus: "PENDING" | "REVIEW" | "APPROVED" | "REJECTED";
   roleCodes: string[];
@@ -47,6 +50,7 @@ const EMPTY_FORM = {
 
 const EMPTY_STEP: WorkflowStep = {
   stepNumber: 1,
+  kind: "TRANSITION",
   fromStatus: "PENDING",
   toStatus: "REVIEW",
   roleCodes: [],
@@ -81,8 +85,10 @@ export function ApprovalWorkflowsManager({
           statuses: STATUS_OPTIONS,
           steps: steps.map((s) => ({
             stepNumber: s.stepNumber,
+            kind: s.kind,
             from: s.fromStatus,
-            to: s.toStatus,
+            // A signature step never changes status, so its target equals its source.
+            to: s.kind === "SIGNATURE" ? s.fromStatus : s.toStatus,
             roles: s.roleCodes,
           })),
         },
@@ -117,6 +123,7 @@ export function ApprovalWorkflowsManager({
         steps?: Array<{
           name?: string;
           stepNumber?: number;
+          kind?: string;
           from?: string;
           to?: string;
           roles?: string[];
@@ -125,6 +132,7 @@ export function ApprovalWorkflowsManager({
       if (Array.isArray(definition.steps) && definition.steps.length > 0) {
         parsedSteps = definition.steps.map((s) => ({
           stepNumber: Number(s.stepNumber ?? s.name ?? 1),
+          kind: (s.kind === "SIGNATURE" ? "SIGNATURE" : "TRANSITION") as WorkflowStepKind,
           fromStatus: (s.from as WorkflowStep["fromStatus"]) ?? "PENDING",
           toStatus: (s.to as WorkflowStep["toStatus"]) ?? "REVIEW",
           roleCodes: Array.isArray(s.roles) ? s.roles : [],
@@ -218,7 +226,7 @@ export function ApprovalWorkflowsManager({
                 <div className="space-y-3">
                   {steps.map((step, index) => (
                     <div key={`${index}-${step.stepNumber}`} className="rounded border p-3 space-y-3">
-                      <div className="grid md:grid-cols-3 gap-2">
+                      <div className="grid md:grid-cols-2 gap-2">
                         <Input
                           type="number"
                           min={1}
@@ -243,6 +251,32 @@ export function ApprovalWorkflowsManager({
                         />
                         <select
                           className="h-9 rounded-md border bg-background px-3 text-sm"
+                          value={step.kind}
+                          onChange={(e) =>
+                            setSteps((prev) =>
+                              prev.map((p, i) =>
+                                i === index
+                                  ? {
+                                      ...p,
+                                      kind: e.target.value as WorkflowStepKind,
+                                    }
+                                  : p,
+                              ),
+                            )
+                          }
+                          disabled={pending || (!!editingId && !canEdit)}
+                        >
+                          <option value="TRANSITION">Status change</option>
+                          <option value="SIGNATURE">Signature (no status change)</option>
+                        </select>
+                      </div>
+                      <div
+                        className={`grid gap-2 ${
+                          step.kind === "SIGNATURE" ? "md:grid-cols-1" : "md:grid-cols-2"
+                        }`}
+                      >
+                        <select
+                          className="h-9 rounded-md border bg-background px-3 text-sm"
                           value={step.fromStatus}
                           onChange={(e) =>
                             setSteps((prev) =>
@@ -261,33 +295,35 @@ export function ApprovalWorkflowsManager({
                         >
                           {STATUS_OPTIONS.map((status) => (
                             <option key={status} value={status}>
-                              From {status}
+                              {step.kind === "SIGNATURE" ? "At" : "From"} {status}
                             </option>
                           ))}
                         </select>
-                        <select
-                          className="h-9 rounded-md border bg-background px-3 text-sm"
-                          value={step.toStatus}
-                          onChange={(e) =>
-                            setSteps((prev) =>
-                              prev.map((p, i) =>
-                                i === index
-                                  ? {
-                                      ...p,
-                                      toStatus: e.target.value as WorkflowStep["toStatus"],
-                                    }
-                                  : p,
-                              ),
-                            )
-                          }
-                          disabled={pending || (!!editingId && !canEdit)}
-                        >
-                          {STATUS_OPTIONS.map((status) => (
-                            <option key={status} value={status}>
-                              To {status}
-                            </option>
-                          ))}
-                        </select>
+                        {step.kind === "SIGNATURE" ? null : (
+                          <select
+                            className="h-9 rounded-md border bg-background px-3 text-sm"
+                            value={step.toStatus}
+                            onChange={(e) =>
+                              setSteps((prev) =>
+                                prev.map((p, i) =>
+                                  i === index
+                                    ? {
+                                        ...p,
+                                        toStatus: e.target.value as WorkflowStep["toStatus"],
+                                      }
+                                    : p,
+                                ),
+                              )
+                            }
+                            disabled={pending || (!!editingId && !canEdit)}
+                          >
+                            {STATUS_OPTIONS.map((status) => (
+                              <option key={status} value={status}>
+                                To {status}
+                              </option>
+                            ))}
+                          </select>
+                        )}
                       </div>
                       <div className="space-y-2">
                         <Label>Allowed roles for this step</Label>

@@ -232,3 +232,15 @@ export const updateLicenseSignatureSchema = z.object({
 })
 
 export type UpdateLicenseSignatureInput = z.infer<typeof updateLicenseSignatureSchema>
+
+// Schema for signing a SIGNATURE-kind workflow step (does not change license status)
+export const signWorkflowStepSchema = z.object({
+  id: z.string().uuid("Invalid license ID"),
+  comment: z
+    .string()
+    .trim()
+    .max(1000, "Comment cannot exceed 1000 characters")
+    .optional(),
+})
+
+export type SignWorkflowStepInput = z.infer<typeof signWorkflowStepSchema>

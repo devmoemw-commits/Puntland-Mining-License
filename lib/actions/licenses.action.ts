@@ -12,6 +12,7 @@ import { actionClient } from "@/lib/safe-action";
 import {
   deleteLicenseSchema,
   licensesSchema,
+  signWorkflowStepSchema,
   updateLicenseSchema,
   updateLicenseSignatureSchema,
   updateLicenseStatusSchema,
@@ -24,8 +25,12 @@ import { dataDeletionBlockedResult } from "@/lib/data-retention";
 
 type LicenseStatus = "PENDING" | "REVIEW" | "APPROVED" | "REJECTED";
 
+/** "TRANSITION" changes the license status; "SIGNATURE" collects a signature without changing status. */
+type WorkflowStepKind = "TRANSITION" | "SIGNATURE";
+
 type WorkflowStepDefinition = {
   stepNumber: number;
+  kind: WorkflowStepKind;
   from: LicenseStatus;
   to: LicenseStatus;
   roles?: string[];
@@ -39,22 +44,33 @@ const LICENSE_MODULE = "LICENSE";
 
 function parseWorkflowDefinition(definition: string): WorkflowDefinition | null {
   try {
-    const parsed = JSON.parse(definition) as { steps?: WorkflowStepDefinition[] };
+    const parsed = JSON.parse(definition) as {
+      steps?: Array<WorkflowStepDefinition & { kind?: string }>;
+    };
     if (!Array.isArray(parsed.steps)) return null;
 
+    const validStatuses = ["PENDING", "REVIEW", "APPROVED", "REJECTED"];
+
     const steps = parsed.steps
-      .map((step) => ({
-        stepNumber: Number(step.stepNumber),
-        from: step.from,
-        to: step.to,
-        roles: Array.isArray(step.roles) ? step.roles.map((r) => String(r).trim()).filter(Boolean) : [],
-      }))
+      .map((step) => {
+        // Steps without an explicit kind are legacy status transitions.
+        const kind: WorkflowStepKind = step.kind === "SIGNATURE" ? "SIGNATURE" : "TRANSITION";
+        // A signature step never changes status, so its target equals its source status.
+        const to = kind === "SIGNATURE" ? step.from : step.to;
+        return {
+          stepNumber: Number(step.stepNumber),
+          kind,
+          from: step.from,
+          to,
+          roles: Array.isArray(step.roles) ? step.roles.map((r) => String(r).trim()).filter(Boolean) : [],
+        };
+      })
       .filter(
         (step) =>
           Number.isFinite(step.stepNumber) &&
           step.stepNumber > 0 &&
-          ["PENDING", "REVIEW", "APPROVED", "REJECTED"].includes(step.from) &&
-          ["PENDING", "REVIEW", "APPROVED", "REJECTED"].includes(step.to),
+          validStatuses.includes(step.from) &&
+          validStatuses.includes(step.to),
       )
       .sort((a, b) => a.stepNumber - b.stepNumber);
 
@@ -347,6 +363,7 @@ export const UpdateLicenseStatus = actionClient
 
         const matchingStep = parsedDefinition.steps.find(
           (step) =>
+            step.kind === "TRANSITION" &&
             step.from === current.status &&
             step.to === status &&
             step.stepNumber > workflowContext.instance.currentStepNumber,
@@ -355,6 +372,21 @@ export const UpdateLicenseStatus = actionClient
         if (!matchingStep) {
           return {
             error: `Transition from ${current.status} to ${status} is not allowed by active workflow`,
+          };
+        }
+
+        // Enforce ordering: a pending signature step at this status that comes
+        // before the chosen transition must be signed first.
+        const pendingSignatureBefore = parsedDefinition.steps.find(
+          (step) =>
+            step.kind === "SIGNATURE" &&
+            step.from === current.status &&
+            step.stepNumber > workflowContext.instance.currentStepNumber &&
+            step.stepNumber < matchingStep.stepNumber,
+        );
+        if (pendingSignatureBefore) {
+          return {
+            error: "A required signature step must be completed before this action.",
           };
         }
 
@@ -503,6 +535,122 @@ export const UpdateLicenseSignature = actionClient
       console.error("Error updating license signature:", error);
       return {
         error: `Failed to update license signature: ${error instanceof Error ? error.message : String(error)}`,
+      };
+    }
+  });
+
+// Complete a SIGNATURE-kind workflow step: records the acting user's signature and
+// advances the workflow without changing the license status.
+export const SignWorkflowStep = actionClient
+  .schema(signWorkflowStepSchema)
+  .action(async ({ parsedInput: { id, comment } }) => {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return { error: "Unauthorized" };
+    }
+
+    try {
+      const [current] = await db
+        .select({ status: licenses.status })
+        .from(licenses)
+        .where(eq(licenses.id, id))
+        .limit(1);
+
+      if (!current) {
+        return { error: "License not found" };
+      }
+
+      const workflowContext = await ensureLicenseWorkflowInstance(id);
+      if (!workflowContext) {
+        return { error: "No active workflow is configured for licenses." };
+      }
+
+      const definitionSource =
+        workflowContext.instance.definitionSnapshot ??
+        workflowContext.workflow.definition;
+      const parsedDefinition = parseWorkflowDefinition(definitionSource);
+      if (!parsedDefinition) {
+        return { error: "Workflow definition is invalid. Please fix it in settings." };
+      }
+
+      // The immediate next step (by number) must be a signature step at the current status.
+      const nextPending = parsedDefinition.steps.find(
+        (step) => step.stepNumber > workflowContext.instance.currentStepNumber,
+      );
+      if (
+        !nextPending ||
+        nextPending.kind !== "SIGNATURE" ||
+        nextPending.from !== current.status
+      ) {
+        return { error: "There is no signature step to complete at this stage." };
+      }
+
+      // Role gate: the actor must be allowed for this step. If no roles are set on
+      // the step, fall back to requiring the moderation permission.
+      const actorRole = session.user.role ?? null;
+      if (nextPending.roles?.length) {
+        if (!actorRole || !nextPending.roles.includes(actorRole)) {
+          return {
+            error: `Role ${actorRole ?? "UNKNOWN"} is not allowed to sign this step`,
+          };
+        }
+      } else {
+        const denied = await requireActionPermission(Permissions.LICENSE_MODERATE);
+        if (denied) return { error: denied };
+      }
+
+      const [actor] = await db
+        .select({ signatureImageUrl: users.signatureImageUrl, name: users.name })
+        .from(users)
+        .where(eq(users.id, session.user.id))
+        .limit(1);
+
+      if (!actor?.signatureImageUrl) {
+        return {
+          error: "You must upload your signature in profile before signing.",
+        };
+      }
+      if (!actor?.name?.trim()) {
+        return {
+          error: "Please set your full name in profile before signing.",
+        };
+      }
+
+      // Record the signature (status unchanged) and advance the workflow step.
+      await db
+        .update(licenses)
+        .set({
+          signature: true,
+          signed_by_user_id: session.user.id,
+          updated_at: new Date(),
+        })
+        .where(eq(licenses.id, id));
+
+      await db
+        .update(licenseWorkflowInstances)
+        .set({
+          currentStepNumber: nextPending.stepNumber,
+          updatedAt: new Date(),
+        })
+        .where(eq(licenseWorkflowInstances.id, workflowContext.instance.id));
+
+      await db.insert(licenseWorkflowTransitions).values({
+        instanceId: workflowContext.instance.id,
+        licenseId: id,
+        stepNumber: nextPending.stepNumber,
+        fromStatus: current.status,
+        toStatus: current.status,
+        actedByUserId: session.user.id,
+        actedByName: actor.name.trim(),
+        actedBySignatureUrl: actor.signatureImageUrl,
+        comment: comment ?? null,
+      });
+
+      return { success: "Signature recorded successfully" };
+    } catch (error) {
+      console.error("Error signing workflow step:", error);
+      return {
+        error: `Failed to sign workflow step: ${error instanceof Error ? error.message : String(error)}`,
       };
     }
   });

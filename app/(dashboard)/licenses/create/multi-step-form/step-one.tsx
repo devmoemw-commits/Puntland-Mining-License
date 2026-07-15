@@ -19,6 +19,11 @@ type RegionDistrict = {
   districtName: string
 }
 
+type BusinessType = {
+  id: string
+  name: string
+}
+
 type StepOneProps = {
   onNext: (values: z.infer<typeof firstStepSchema>) => void
   formData: z.infer<typeof firstStepSchema>
@@ -28,6 +33,7 @@ const StepOne = ({ onNext, formData }: StepOneProps) => {
   const [regions, setRegions] = useState<{ id: string; name: string }[]>([])
   const [districts, setDistricts] = useState<{ id: string; name: string; regionId: string }[]>([])
   const [filteredDistricts, setFilteredDistricts] = useState<{ id: string; name: string; regionId: string }[]>([])
+  const [businessTypes, setBusinessTypes] = useState<BusinessType[]>([])
   const [loading, setLoading] = useState(true)
 
   const form = useForm<z.infer<typeof firstStepSchema>>({
@@ -73,6 +79,25 @@ const StepOne = ({ onNext, formData }: StepOneProps) => {
     fetchData()
   }, [])
 
+  // Fetch predefined business types
+  useEffect(() => {
+    let active = true
+    const fetchBusinessTypes = async () => {
+      try {
+        const response = await fetch("/api/business-types")
+        if (!response.ok) throw new Error("Failed to load business types")
+        const data: BusinessType[] = await response.json()
+        if (active) setBusinessTypes(data)
+      } catch (error) {
+        console.error("Failed to fetch business types:", error)
+      }
+    }
+    fetchBusinessTypes()
+    return () => {
+      active = false
+    }
+  }, [])
+
   // Watch for region changes to filter districts
   const selectedRegion = form.watch("region")
 
@@ -112,14 +137,6 @@ const StepOne = ({ onNext, formData }: StepOneProps) => {
 
     onNext(values)
   }
-
-  const businessTypes = [
-    "Mining",
-    "Construction",
-    "Manufacturing",
-    "Consulting",
-    "Other",
-  ];
 
   return (
     <div>
@@ -161,8 +178,8 @@ const StepOne = ({ onNext, formData }: StepOneProps) => {
                         </SelectTrigger>
                         <SelectContent>
                           {businessTypes.map((type) => (
-                            <SelectItem key={type} value={type}>
-                              {type}
+                            <SelectItem key={type.id} value={type.name}>
+                              {type.name}
                             </SelectItem>
                           ))}
                         </SelectContent>

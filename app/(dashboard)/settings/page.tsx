@@ -70,6 +70,24 @@ export default async function SettingsPage() {
             </CardContent>
           </Card>
         )}
+        {canManageSystemSettings && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Business types</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground mb-3">
+                Manage the predefined company business types.
+              </p>
+              <Link
+                className="text-sm underline underline-offset-4"
+                href="/settings/business-types"
+              >
+                Manage business types
+              </Link>
+            </CardContent>
+          </Card>
+        )}
         {canViewApprovalWorkflows && (
           <Card>
             <CardHeader>

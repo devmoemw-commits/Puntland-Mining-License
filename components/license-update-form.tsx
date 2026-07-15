@@ -102,7 +102,12 @@ interface LicenseUpdateFormProps {
 }
 
 const LICENSE_TYPES = ["New License", "Renewal"]
-const BUSINESS_TYPES = ["Mining", "Construction", "Manufacturing", "Consulting", "Other"]
+
+// Predefined business types are managed in Settings > Business types and loaded from the DB.
+type BusinessType = {
+  id: string
+  name: string
+}
 
 // Predefined license categories are managed in Settings > License categories and loaded from the DB.
 type LicenseCategory = {
@@ -117,6 +122,7 @@ export function LicenseUpdateForm({ license, onSuccess }: LicenseUpdateFormProps
   const [districts, setDistricts] = useState<{ id: string; name: string; regionId: string }[]>([])
   const [filteredDistricts, setFilteredDistricts] = useState<{ id: string; name: string; regionId: string }[]>([])
   const [categories, setCategories] = useState<LicenseCategory[]>([])
+  const [businessTypeOptions, setBusinessTypeOptions] = useState<BusinessType[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isDataLoaded, setIsDataLoaded] = useState(false)
@@ -203,6 +209,25 @@ export function LicenseUpdateForm({ license, onSuccess }: LicenseUpdateFormProps
       }
     }
     fetchCategories()
+    return () => {
+      active = false
+    }
+  }, [])
+
+  // Fetch predefined business types
+  useEffect(() => {
+    let active = true
+    const fetchBusinessTypes = async () => {
+      try {
+        const response = await fetch("/api/business-types")
+        if (!response.ok) throw new Error("Failed to load business types")
+        const data: BusinessType[] = await response.json()
+        if (active) setBusinessTypeOptions(data)
+      } catch (error) {
+        console.error("Failed to fetch business types:", error)
+      }
+    }
+    fetchBusinessTypes()
     return () => {
       active = false
     }
@@ -341,9 +366,14 @@ export function LicenseUpdateForm({ license, onSuccess }: LicenseUpdateFormProps
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {BUSINESS_TYPES.map((type) => (
-                              <SelectItem key={type} value={type}>
-                                {type}
+                            {/* Keep the current value selectable even if it was later deactivated */}
+                            {field.value &&
+                              !businessTypeOptions.some((t) => t.name === field.value) && (
+                                <SelectItem value={field.value}>{field.value}</SelectItem>
+                              )}
+                            {businessTypeOptions.map((type) => (
+                              <SelectItem key={type.id} value={type.name}>
+                                {type.name}
                               </SelectItem>
                             ))}
                           </SelectContent>

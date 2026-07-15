@@ -33,6 +33,7 @@ import {
   FileImage,
   FileTextIcon,
   Loader2,
+  PenLine,
 } from "lucide-react";
 import Link from "next/link";
 import type { License } from "@/types";
@@ -40,6 +41,7 @@ import type { CertificateAssets } from "@/lib/data/get-system-config";
 import Image from "next/image";
 import MiningLicense from "./mining-license-template";
 import {
+  SignWorkflowStep,
   UpdateLicenseSignature,
   UpdateLicenseStatus,
 } from "@/lib/actions/licenses.action";
@@ -64,6 +66,7 @@ export default function LicenseDetails({
     currentStepNumber: number;
     isCompleted: boolean;
     nextStep: {
+      kind: "TRANSITION" | "SIGNATURE";
       fromStatus: string;
       toStatus: string;
       allowedRoles: string[];
@@ -274,6 +277,28 @@ export default function LicenseDetails({
         console.error("Error updating signature:", error);
         // Revert the checkbox state on error
         setSignature(!newSignatureStatus);
+      }
+    });
+  };
+
+  const handleSignStep = () => {
+    startWorkflowTransition(async () => {
+      try {
+        const result = await SignWorkflowStep({
+          id: license.id,
+          comment: workflowComment.trim() || undefined,
+        });
+
+        if (result?.data?.error) {
+          toast.error(String(result.data.error));
+          return;
+        }
+        toast.success("Signature recorded successfully");
+        setWorkflowComment("");
+        router.refresh();
+      } catch (error) {
+        toast.error("Failed to sign workflow step");
+        console.error("Error signing workflow step:", error);
       }
     });
   };
@@ -1021,14 +1046,22 @@ export default function LicenseDetails({
                   );
                   const actorName = transition?.actedByName ?? "No action taker";
                   const actionStatus = transition?.toStatus?.toUpperCase();
+                  // A signature step records the same from/to status (no status change).
+                  const isSignatureTransition =
+                    !!transition &&
+                    transition.fromStatus?.toUpperCase() ===
+                      transition.toStatus?.toUpperCase();
                   const shouldRenderSignature =
-                    actionStatus === "REVIEW" || actionStatus === "APPROVED";
+                    isSignatureTransition ||
+                    actionStatus === "REVIEW" ||
+                    actionStatus === "APPROVED";
                   const actorSignature = shouldRenderSignature
                     ? (transition?.actedBySignatureUrl ?? null)
                     : null;
                   const isSigned = Boolean(transition);
-                  const actionLabel =
-                    actionStatus === "REVIEW"
+                  const actionLabel = isSignatureTransition
+                    ? "Signed"
+                    : actionStatus === "REVIEW"
                       ? "Reviewed"
                       : actionStatus === "APPROVED"
                         ? "Approved"
@@ -1045,8 +1078,9 @@ export default function LicenseDetails({
                     !!workflow?.nextStep &&
                     (workflow.nextStep.allowedRoles.length === 0 ||
                       workflow.nextStep.allowedRoles.includes(role.code));
+                  const isSignatureStep = workflow?.nextStep?.kind === "SIGNATURE";
                   const nextStatus = workflow?.nextStep?.toStatus?.toUpperCase();
-                  const requiresReviewComment = nextStatus === "REVIEW";
+                  const requiresReviewComment = !isSignatureStep && nextStatus === "REVIEW";
                   const primaryActionLabel =
                     nextStatus === "REVIEW"
                       ? "Review"
@@ -1102,45 +1136,62 @@ export default function LicenseDetails({
 
                       {canCurrentRoleAct ? (
                         <div className="mt-4 space-y-2 border-t border-slate-200/70 pt-3 dark:border-slate-800">
-                          {requiresReviewComment ? (
-                            <div className="w-full">
-                              <Textarea
-                                placeholder="Optional review comment..."
-                                value={workflowComment}
-                                onChange={(e) => setWorkflowComment(e.target.value)}
-                                className="min-h-20 text-sm"
+                          {isSignatureStep ? (
+                            <div className="flex items-center justify-start gap-2">
+                              <Button
+                                type="button"
+                                size="sm"
                                 disabled={isWorkflowPending}
-                              />
+                                onClick={handleSignStep}
+                                className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                              >
+                                <PenLine className="h-4 w-4 mr-1" />
+                                Sign
+                              </Button>
                             </div>
-                          ) : null}
-                          <div className="flex items-center justify-start gap-2">
-                            <Button
-                              type="button"
-                              size="sm"
-                              disabled={isWorkflowPending}
-                              onClick={() => handleWorkflowAction("REJECTED", "rejected")}
-                              className="bg-red-600 hover:bg-red-700 text-white"
-                            >
-                              <XCircle className="h-4 w-4 mr-1" />
-                              {requiresReviewComment ? "Reject Review" : "Reject"}
-                            </Button>
-                            <Button
-                              type="button"
-                              size="sm"
-                              disabled={isWorkflowPending}
-                              onClick={() =>
-                                handleWorkflowAction(
-                                  (nextStatus as "REVIEW" | "APPROVED" | "REJECTED") ??
-                                    "APPROVED",
-                                  primaryActionLabel.toLowerCase() as "approved" | "returned" | "rejected",
-                                )
-                              }
-                              className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                            >
-                              <CheckCircle className="h-4 w-4 mr-1" />
-                              {primaryActionLabel}
-                            </Button>
-                          </div>
+                          ) : (
+                            <>
+                              {requiresReviewComment ? (
+                                <div className="w-full">
+                                  <Textarea
+                                    placeholder="Optional review comment..."
+                                    value={workflowComment}
+                                    onChange={(e) => setWorkflowComment(e.target.value)}
+                                    className="min-h-20 text-sm"
+                                    disabled={isWorkflowPending}
+                                  />
+                                </div>
+                              ) : null}
+                              <div className="flex items-center justify-start gap-2">
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  disabled={isWorkflowPending}
+                                  onClick={() => handleWorkflowAction("REJECTED", "rejected")}
+                                  className="bg-red-600 hover:bg-red-700 text-white"
+                                >
+                                  <XCircle className="h-4 w-4 mr-1" />
+                                  {requiresReviewComment ? "Reject Review" : "Reject"}
+                                </Button>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  disabled={isWorkflowPending}
+                                  onClick={() =>
+                                    handleWorkflowAction(
+                                      (nextStatus as "REVIEW" | "APPROVED" | "REJECTED") ??
+                                        "APPROVED",
+                                      primaryActionLabel.toLowerCase() as "approved" | "returned" | "rejected",
+                                    )
+                                  }
+                                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                                >
+                                  <CheckCircle className="h-4 w-4 mr-1" />
+                                  {primaryActionLabel}
+                                </Button>
+                              </div>
+                            </>
+                          )}
                         </div>
                       ) : null}
                     </div>
