@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
@@ -20,6 +20,13 @@ const licenseInfoSchema = z.object({
   license_area: z.array(z.string()).min(1, "License area is required"),
   
 })
+
+type LicenseCategory = {
+  id: string
+  name: string
+  new_license_fee: string
+  renewal_fee: string
+}
 
 interface StepFourProps {
   onNext: (data: z.infer<typeof licenseInfoSchema>) => void
@@ -49,81 +56,62 @@ const StepFour = ({ onNext, onBack, formData }: StepFourProps) => {
   const license_fee = watch("license_fee")
   const license_area = watch("license_area")
 
-  // License types and categories
+  // License types
   const licenseTypes = ["New License", "Renewal"]
 
-  // Memoize licenseCategories so it doesn't change every render
-  const licenseCategories = useMemo(
-    () => ({
-      "New License": [
-        "Large Scale Mining",
-        "Small Scale Mining",
-        "Artisanal Gold Mining",
-        "Mining Equipment Rental",
-        "Stone Crusher",
-      ],
-      Renewal: [
-        "Large Scale Mining",
-        "Small Scale Mining",
-        "Artisanal Gold Mining",
-        "Mining Equipment Rental",
-        "Stone Crusher",
-      ],
-    }),
-    [],
-  )
+  // Predefined categories are managed in Settings > License categories and loaded from the DB
+  const [categories, setCategories] = useState<LicenseCategory[]>([])
+  const [categoriesLoading, setCategoriesLoading] = useState(true)
 
-  const getCategoriesForType = useCallback(
-    (type: string): string[] => {
-      return licenseCategories[type as keyof typeof licenseCategories] || []
-    },
-    [licenseCategories],
-  )
-
-
-
-  // Reset category when license type changes
   useEffect(() => {
-    if (license_type && license_category) {
-      const availableCategories = getCategoriesForType(license_type)
-      if (!availableCategories.includes(license_category)) {
-        setValue("license_category", "", { shouldValidate: true })
+    let active = true
+    const fetchCategories = async () => {
+      try {
+        const res = await fetch("/api/license-categories")
+        if (!res.ok) throw new Error("Failed to load categories")
+        const data: LicenseCategory[] = await res.json()
+        if (active) setCategories(data)
+      } catch (error) {
+        console.error("Failed to fetch license categories:", error)
+      } finally {
+        if (active) setCategoriesLoading(false)
       }
     }
-  }, [license_type, license_category, setValue, getCategoriesForType])
+    fetchCategories()
+    return () => {
+      active = false
+    }
+  }, [])
 
-  const fees = useMemo(
-    () => ({
-      "New License": {
-        "Large Scale Mining": "5000",
-        "Small Scale Mining": "2000",
-        "Artisanal Gold Mining": "2500",
-        "Mining Equipment Rental": "1500",
-        "Stone Crusher": "700",
-      },
-      Renewal: {
-        "Large Scale Mining": "2000",
-        "Small Scale Mining": "500",
-        "Artisanal Gold Mining": "1000",
-        "Mining Equipment Rental": "500",
-        "Stone Crusher": "400",
-      },
-    }),
-    [],
+  const getFeeForSelection = useCallback(
+    (type: string, categoryName: string): string => {
+      const category = categories.find((c) => c.name === categoryName)
+      if (!category) return ""
+      return type === "Renewal" ? category.renewal_fee : category.new_license_fee
+    },
+    [categories],
   )
+
+  // Reset category when it is no longer available (e.g. deactivated) once categories load
+  useEffect(() => {
+    if (categoriesLoading || !license_category) return
+    const stillAvailable = categories.some((c) => c.name === license_category)
+    if (!stillAvailable) {
+      setValue("license_category", "", { shouldValidate: true })
+    }
+  }, [categoriesLoading, categories, license_category, setValue])
 
   // Calculate fee based on selections
   useEffect(() => {
     if (license_type && license_category) {
-      const fee =
-        fees[license_type as keyof typeof fees]?.[license_category as keyof (typeof fees)["New License"]] || ""
+      const fee = getFeeForSelection(license_type, license_category)
 
       // Only update if the fee has actually changed
-      if (license_fee !== fee) {
+      if (fee && license_fee !== fee) {
         setValue("license_fee", fee, { shouldValidate: true })
       }
     }
-  }, [license_type, license_category, license_fee, setValue, fees])
+  }, [license_type, license_category, license_fee, setValue, getFeeForSelection])
 
   const onSubmit = (values: z.infer<typeof licenseInfoSchema>) => {
     onNext(values)
@@ -181,18 +169,28 @@ const StepFour = ({ onNext, onBack, formData }: StepFourProps) => {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>License Category</FormLabel>
-                    <Select value={field.value} onValueChange={field.onChange} disabled={!license_type}>
+                    <Select
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      disabled={!license_type || categoriesLoading}
+                    >
                       <FormControl>
                         <SelectTrigger className="w-full">
                           <SelectValue
-                            placeholder={license_type ? "Select license category" : "Select license type first"}
+                            placeholder={
+                              categoriesLoading
+                                ? "Loading categories..."
+                                : license_type
+                                  ? "Select license category"
+                                  : "Select license type first"
+                            }
                           />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {getCategoriesForType(license_type).map((category) => (
-                          <SelectItem key={category} value={category}>
-                            {category}
+                        {categories.map((category) => (
+                          <SelectItem key={category.id} value={category.name}>
+                            {category.name}
                           </SelectItem>
                         ))}
                       </SelectContent>

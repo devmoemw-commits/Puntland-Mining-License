@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { NextResponse } from "next/server";
+import { requireSession } from "@/lib/permissions-server";
 
 function firstNonEmpty(...values: Array<string | undefined>): string {
   for (const value of values) {
@@ -18,6 +19,9 @@ function sanitizeEnv(value: string): string {
 }
 
 export async function GET() {
+  const denied = await requireSession();
+  if (denied) return denied;
+
   const rawPublicKey = firstNonEmpty(
     process.env.NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY,
     process.env.IMAGEKIT_PUBLIC_KEY,

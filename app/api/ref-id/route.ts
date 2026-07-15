@@ -4,8 +4,13 @@ import { NextResponse } from "next/server";
 import { count } from "drizzle-orm";
 import { db } from "@/database/drizzle";
 import { sampleAnalysis } from "@/database/schema";
+import { requireApiPermission } from "@/lib/permissions-server";
+import { Permissions } from "@/lib/permissions";
 
 export async function GET() {
+  const denied = await requireApiPermission(Permissions.SAMPLE_ANALYSIS_ACCESS);
+  if (denied) return denied;
+
   const totalSamples = await db
     .select({ count: count() })
     .from(sampleAnalysis);

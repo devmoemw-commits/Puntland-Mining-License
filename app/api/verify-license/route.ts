@@ -1,5 +1,7 @@
-import config from "@/lib/config/config";
 import { type NextRequest, NextResponse } from "next/server";
+import { db } from "@/database/drizzle";
+import { districts, licenses } from "@/database/schema";
+import { eq } from "drizzle-orm";
 
 export interface Root {
   id: string;
@@ -34,40 +36,42 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Replace with your actual API endpoint
-    const response = await fetch(`${config.env.apiEndpoint}/api/licenses`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
+    const [row] = await db
+      .select({
+        id: licenses.id,
+        license_ref_id: licenses.license_ref_id,
+        company_name: licenses.company_name,
+        business_type: licenses.business_type,
+        license_type: licenses.license_type,
+        license_category: licenses.license_category,
+        license_area: licenses.license_area,
+        created_at: licenses.created_at,
+        expire_date: licenses.expire_date,
+        status: licenses.status,
+        location: districts,
+      })
+      .from(licenses)
+      .leftJoin(districts, eq(licenses.district_id, districts.id))
+      .where(eq(licenses.license_ref_id, refId))
+      .limit(1);
 
-    if (!response.ok) {
-      throw new Error("Failed to fetch licenses");
-    }
-
-    const licenses = await response.json();
-
-    // Find the license by reference ID
-    const license = licenses.find((l: Root) => l.license_ref_id === refId);
-
-    if (!license) {
+    if (!row) {
       return NextResponse.json({ error: "License not found" }, { status: 404 });
     }
 
     // Return only public information (remove sensitive data)
     const publicLicenseInfo = {
-      id: license.id,
-      license_ref_id: license.license_ref_id,
-      company_name: license.company_name,
-      business_type: license.business_type,
-      license_type: license.license_type,
-      license_category: license.license_category,
-      license_area: license.license_area,
-      created_at: license.created_at,
-      expire_date: license.expire_date,
-      location: license.location,
-      status: license.status
+      id: row.id,
+      license_ref_id: row.license_ref_id,
+      company_name: row.company_name,
+      business_type: row.business_type,
+      license_type: row.license_type,
+      license_category: row.license_category,
+      license_area: row.license_area,
+      created_at: row.created_at,
+      expire_date: row.expire_date,
+      location: row.location,
+      status: row.status,
     };
 
     return NextResponse.json(publicLicenseInfo);

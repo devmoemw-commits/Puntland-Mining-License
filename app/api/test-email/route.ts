@@ -1,7 +1,12 @@
 import { sendSimplePasswordResetEmail } from "@/lib/email-simple"
 import { type NextRequest, NextResponse } from "next/server"
+import { requireApiPermission } from "@/lib/permissions-server"
+import { Permissions } from "@/lib/permissions"
 
 export async function POST(request: NextRequest) {
+  const denied = await requireApiPermission(Permissions.SYSTEM_SETTINGS)
+  if (denied) return denied
+
   try {
     const { email } = await request.json()
 

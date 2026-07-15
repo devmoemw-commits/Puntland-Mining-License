@@ -52,6 +52,24 @@ export default async function SettingsPage() {
             </CardContent>
           </Card>
         )}
+        {canManageSystemSettings && (
+          <Card>
+            <CardHeader>
+              <CardTitle>License categories</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground mb-3">
+                Manage the predefined license categories and their fees.
+              </p>
+              <Link
+                className="text-sm underline underline-offset-4"
+                href="/settings/license-categories"
+              >
+                Manage license categories
+              </Link>
+            </CardContent>
+          </Card>
+        )}
         {canViewApprovalWorkflows && (
           <Card>
             <CardHeader>

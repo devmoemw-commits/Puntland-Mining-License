@@ -103,43 +103,20 @@ interface LicenseUpdateFormProps {
 
 const LICENSE_TYPES = ["New License", "Renewal"]
 const BUSINESS_TYPES = ["Mining", "Construction", "Manufacturing", "Consulting", "Other"]
-const LICENSE_CATEGORIES = {
-  "New License": [
-    "Large Scale Mining Permit",
-    "Small Scale Mining Permit",
-    "Artisanal Gold Mining Permit",
-    "Mining Equipment Rental Permit",
-    "Stone Crusher Permit",
-  ],
-  Renewal: [
-    "Large Scale Mining Permit",
-    "Small Scale Mining Permit",
-    "Artisanal Gold Mining Permit",
-    "Mining Equipment Rental Permit",
-    "Stone Crusher Permit",
-  ],
-}
-const FEES = {
-  "New License": {
-    "Large Scale Mining": "5000",
-    "Small Scale Mining": "2000",
-    "Artisanal Gold Mining": "2500",
-    "Mining Equipment Rental": "1500",
-    "Stone Crusher": "700",
-  },
-  Renewal: {
-    "Large Scale Mining": "2000",
-    "Small Scale Mining": "500",
-    "Artisanal Gold Mining": "1000",
-    "Mining Equipment Rental": "500",
-    "Stone Crusher": "400",
-  },
+
+// Predefined license categories are managed in Settings > License categories and loaded from the DB.
+type LicenseCategory = {
+  id: string
+  name: string
+  new_license_fee: string
+  renewal_fee: string
 }
 
 export function LicenseUpdateForm({ license, onSuccess }: LicenseUpdateFormProps) {
   const [regions, setRegions] = useState<{ id: string; name: string }[]>([])
   const [districts, setDistricts] = useState<{ id: string; name: string; regionId: string }[]>([])
   const [filteredDistricts, setFilteredDistricts] = useState<{ id: string; name: string; regionId: string }[]>([])
+  const [categories, setCategories] = useState<LicenseCategory[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isDataLoaded, setIsDataLoaded] = useState(false)
@@ -212,6 +189,25 @@ export function LicenseUpdateForm({ license, onSuccess }: LicenseUpdateFormProps
     fetchData()
   }, [license.region])
 
+  // Fetch predefined license categories
+  useEffect(() => {
+    let active = true
+    const fetchCategories = async () => {
+      try {
+        const response = await fetch("/api/license-categories")
+        if (!response.ok) throw new Error("Failed to load categories")
+        const data: LicenseCategory[] = await response.json()
+        if (active) setCategories(data)
+      } catch (error) {
+        console.error("Failed to fetch license categories:", error)
+      }
+    }
+    fetchCategories()
+    return () => {
+      active = false
+    }
+  }, [])
+
   // Watch for region changes to filter districts
   const selectedRegion = form.watch("region")
 
@@ -248,55 +244,25 @@ export function LicenseUpdateForm({ license, onSuccess }: LicenseUpdateFormProps
   const license_type = form.watch("license_type")
   const license_category = form.watch("license_category")
 
-  // Helper function to get categories for a license type
-  const getCategoriesForType = useCallback((type: string) => {
-    return LICENSE_CATEGORIES[type as keyof typeof LICENSE_CATEGORIES] || []
-  }, [])
+  // Calculate fee based on the selected type + category (fees are stored on the category)
+  const getFeeForSelection = useCallback(
+    (type: string, categoryName: string): string => {
+      const category = categories.find((c) => c.name === categoryName)
+      if (!category) return ""
+      return type === "Renewal" ? category.renewal_fee : category.new_license_fee
+    },
+    [categories],
+  )
 
-  // Reset category when license type changes, but preserve valid existing categories
-  useEffect(() => {
-    if (license_type) {
-      const availableCategories = getCategoriesForType(license_type)
-      const currentCategory = form.getValues("license_category")
-
-      // Only reset if current category is not available for the selected license type
-      // and if this is actually a user-initiated change (not initial load)
-      if (currentCategory && !availableCategories.includes(currentCategory)) {
-        // Only reset if the license type has actually changed from the original
-        if (license_type !== license.license_type) {
-          form.setValue("license_category", "", { shouldValidate: true })
-        }
-      }
-    }
-  }, [license_type, form, license.license_type, getCategoriesForType])
-
-  // Fee structure
-  // Calculate fee based on selections
   useEffect(() => {
     if (license_type && license_category) {
-      // Map the full category names to the keys used in the fees object
-      const categoryKey = license_category.includes("Large Scale")
-        ? "Large Scale Mining"
-        : license_category.includes("Small Scale")
-          ? "Small Scale Mining"
-          : license_category.includes("Artisanal")
-            ? "Artisanal Gold Mining"
-            : license_category.includes("Equipment")
-              ? "Mining Equipment Rental"
-              : license_category.includes("Stone")
-                ? "Stone Crusher"
-                : ""
-
-      const fee =
-        FEES[license_type as keyof typeof FEES]?.[
-          categoryKey as keyof (typeof FEES)["New License"]
-        ] || ""
+      const fee = getFeeForSelection(license_type, license_category)
 
       if (fee && form.getValues("calculated_fee") !== fee) {
         form.setValue("calculated_fee", fee, { shouldValidate: true })
       }
     }
-  }, [license_type, license_category, form])
+  }, [license_type, license_category, form, getFeeForSelection])
 
   // Handle form submission
   async function onSubmit(values: z.infer<typeof formSchema>) {
@@ -678,12 +644,16 @@ export function LicenseUpdateForm({ license, onSuccess }: LicenseUpdateFormProps
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {license_type &&
-                              getCategoriesForType(license_type).map((category) => (
-                                <SelectItem key={category} value={category}>
-                                  {category}
-                                </SelectItem>
-                              ))}
+                            {/* Keep the current value selectable even if it was later deactivated */}
+                            {field.value &&
+                              !categories.some((c) => c.name === field.value) && (
+                                <SelectItem value={field.value}>{field.value}</SelectItem>
+                              )}
+                            {categories.map((category) => (
+                              <SelectItem key={category.id} value={category.name}>
+                                {category.name}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                         <FormMessage />

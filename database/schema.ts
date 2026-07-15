@@ -176,6 +176,26 @@ export const districts = pgTable("districts", {
   created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
 
+// 👉 License Categories Table (predefined + editable lookup for STEP 4)
+export const licenseCategories = pgTable("license_categories", {
+  id: uuid("id").notNull().primaryKey().defaultRandom().unique(),
+  name: varchar("name", { length: 255 }).notNull().unique(),
+  description: text("description"),
+  /** Fee applied when license_type = "New License". */
+  new_license_fee: decimal("new_license_fee", { precision: 10, scale: 2 })
+    .notNull()
+    .default("0"),
+  /** Fee applied when license_type = "Renewal". */
+  renewal_fee: decimal("renewal_fee", { precision: 10, scale: 2 })
+    .notNull()
+    .default("0"),
+  /** Inactive categories are hidden from application forms but kept for history. */
+  is_active: boolean("is_active").default(true).notNull(),
+  sort_order: integer("sort_order").default(0).notNull(),
+  created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
 // 👉 Licenses Table
 export const licenses = pgTable("licenses", {
   id: uuid("id").notNull().primaryKey().defaultRandom().unique(),
