@@ -49,6 +49,7 @@ import { toast } from "sonner";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { formatDate } from "@/lib/formatDate";
+import { Permissions } from "@/lib/permissions";
 
 export default function LicenseDetails({
   license,
@@ -97,6 +98,11 @@ export default function LicenseDetails({
   const componentRef = useRef(null);
 
   const { data: session } = useSession();
+
+  // Certificate signing is permission-based (license.moderate), not tied to specific roles.
+  const canSignCertificate = (session?.user?.permissionCodes ?? []).includes(
+    Permissions.LICENSE_MODERATE,
+  );
 
   const router = useRouter();
 
@@ -513,8 +519,7 @@ export default function LicenseDetails({
                       </div>
                     </div>
                     <DialogFooter className="border-t bg-white px-4 py-3 sm:px-6 dark:bg-gray-800 sm:justify-between">
-                      {(session?.user?.role === "MINISTER" ||
-                        session?.user?.role === "GENERAL_DIRECTOR") && (
+                      {canSignCertificate && (
                         <div className="flex items-center gap-2">
                           <p className="text-sm text-gray-500">Signature</p>
                           <div className="flex items-center gap-1">
