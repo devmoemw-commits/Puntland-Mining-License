@@ -4,8 +4,10 @@ import {
   ColumnDef,
   flexRender,
   getCoreRowModel,
+  getFilteredRowModel,
   useReactTable,
 } from "@tanstack/react-table"
+import { useState } from "react"
 
 import {
   Table,
@@ -29,10 +31,26 @@ export function DataTable<TData, TValue>({
   columns,
   data,
 }: DataTableProps<TData, TValue>) {
+  const [globalFilter, setGlobalFilter] = useState("")
+
   const table = useReactTable({
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    onGlobalFilterChange: setGlobalFilter,
+    // Search matches name, license ref no, or passport no
+    globalFilterFn: (row, _columnId, filterValue) => {
+      const search = String(filterValue).trim().toLowerCase()
+      if (!search) return true
+      const original = row.original as Record<string, unknown>
+      return ["name", "ref_id", "passport_no"].some((key) =>
+        String(original[key] ?? "").toLowerCase().includes(search),
+      )
+    },
+    state: {
+      globalFilter,
+    },
   })
 
   return (
@@ -41,9 +59,9 @@ export function DataTable<TData, TValue>({
         <div className="flex items-center justify-between gap-6 w-full">
           <div className="flex flex-1 items-center space-x-2">
             <Input
-              placeholder="Filter by company name..."
-              value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
-              onChange={(event) => table.getColumn("name")?.setFilterValue(event.target.value)}
+              placeholder="Search by name, ref no, or passport no..."
+              value={globalFilter}
+              onChange={(event) => setGlobalFilter(event.target.value)}
               className="max-w-sm"
             />
           </div>

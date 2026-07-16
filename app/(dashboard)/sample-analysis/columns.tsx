@@ -3,6 +3,7 @@
 import { Checkbox } from "@/components/ui/checkbox"
 import type { ColumnDef } from "@tanstack/react-table"
 import { SampleActionsCell } from "./_components/sample-actions-cell"
+import { LicenseStatusBadge } from "../licenses/_components/license-status-badge"
 
 export type TSample = {
   id: string
@@ -10,6 +11,7 @@ export type TSample = {
   name: string
   passport_no: string
   kilo_gram: string
+  status?: "PENDING" | "REVIEW" | "APPROVED" | "REJECTED"
   created_at: string
   updated_at?: string
 }
@@ -52,6 +54,11 @@ export const columns: ColumnDef<TSample>[] = [
   {
     accessorKey: "kilo_gram",
     header: "Kilo Gram",
+  },
+  {
+    accessorKey: "status",
+    header: "Approval Status",
+    cell: ({ row }) => <LicenseStatusBadge status={row.original.status} />,
   },
   {
     accessorKey: "created_at",

@@ -4,6 +4,7 @@ import { useParams } from "next/navigation"
 import { useEffect, useState } from "react"
 import { UpdateSampleAnalysis } from "@/lib/actions/sample.action"
 import ReusableSampleForm from "../_components/view-sample"
+import { SampleWorkflowPanel } from "../_components/sample-workflow-panel"
 
 
 //  name: "",
@@ -181,6 +182,10 @@ export default function SampleDetailPage() {
       </div>
 
       <ReusableSampleForm mode={mode} initialData={formData} onSubmit={handleSubmit} />
+
+      <div className="mt-6">
+        <SampleWorkflowPanel sampleId={sampleData.id} />
+      </div>
     </div>
   )
 }

@@ -23,64 +23,9 @@ import { redirect } from "next/navigation";
 import { requireActionPermission, userHasPermission } from "@/lib/permissions-server";
 import { Permissions } from "@/lib/permissions";
 import { dataDeletionBlockedResult } from "@/lib/data-retention";
-
-type LicenseStatus = "PENDING" | "REVIEW" | "APPROVED" | "REJECTED";
-
-/** "TRANSITION" changes the license status; "SIGNATURE" collects a signature without changing status. */
-type WorkflowStepKind = "TRANSITION" | "SIGNATURE";
-
-type WorkflowStepDefinition = {
-  stepNumber: number;
-  kind: WorkflowStepKind;
-  from: LicenseStatus;
-  to: LicenseStatus;
-  roles?: string[];
-};
-
-type WorkflowDefinition = {
-  steps: WorkflowStepDefinition[];
-};
+import { parseWorkflowDefinition } from "@/lib/approval-workflow";
 
 const LICENSE_MODULE = "LICENSE";
-
-function parseWorkflowDefinition(definition: string): WorkflowDefinition | null {
-  try {
-    const parsed = JSON.parse(definition) as {
-      steps?: Array<WorkflowStepDefinition & { kind?: string }>;
-    };
-    if (!Array.isArray(parsed.steps)) return null;
-
-    const validStatuses = ["PENDING", "REVIEW", "APPROVED", "REJECTED"];
-
-    const steps = parsed.steps
-      .map((step) => {
-        // Steps without an explicit kind are legacy status transitions.
-        const kind: WorkflowStepKind = step.kind === "SIGNATURE" ? "SIGNATURE" : "TRANSITION";
-        // A signature step never changes status, so its target equals its source status.
-        const to = kind === "SIGNATURE" ? step.from : step.to;
-        return {
-          stepNumber: Number(step.stepNumber),
-          kind,
-          from: step.from,
-          to,
-          roles: Array.isArray(step.roles) ? step.roles.map((r) => String(r).trim()).filter(Boolean) : [],
-        };
-      })
-      .filter(
-        (step) =>
-          Number.isFinite(step.stepNumber) &&
-          step.stepNumber > 0 &&
-          validStatuses.includes(step.from) &&
-          validStatuses.includes(step.to),
-      )
-      .sort((a, b) => a.stepNumber - b.stepNumber);
-
-    if (!steps.length) return null;
-    return { steps };
-  } catch {
-    return null;
-  }
-}
 
 async function getActiveLicenseWorkflow() {
   const [workflow] = await db

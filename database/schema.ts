@@ -271,7 +271,7 @@ export const sampleAnalysis = pgTable("sample_analysis", {
   id: uuid("id").notNull().primaryKey().defaultRandom().unique(),
 
   ref_id: varchar("license_ref_id", { length: 255 }).notNull(),
-  
+
   name: varchar("name", { length: 255 }).notNull(),
   nationality: varchar("nationality", { length: 255 }).notNull(),
   passport_no: varchar("passport_no", { length: 255 }).notNull(),
@@ -281,8 +281,50 @@ export const sampleAnalysis = pgTable("sample_analysis", {
 
   signature: boolean("signature").default(false),
 
+  // 👉 Approval workflow status (same lifecycle enum as licenses)
+  status: licenseStatusEnum("status").default("PENDING").notNull(),
+  review_comment: text("review_comment"),
+
   created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+// 👉 Sample workflow runtime (mirrors license workflow instances/transitions)
+export const sampleWorkflowInstances = pgTable("sample_workflow_instances", {
+  id: uuid("id").primaryKey().defaultRandom().notNull(),
+  sampleId: uuid("sample_id")
+    .notNull()
+    .unique()
+    .references(() => sampleAnalysis.id, { onDelete: "cascade" }),
+  workflowId: uuid("workflow_id")
+    .notNull()
+    .references(() => approvalWorkflows.id, { onDelete: "restrict" }),
+  /** Snapshot of workflow definition at sample creation time to avoid retroactive step changes. */
+  definitionSnapshot: text("definition_snapshot"),
+  currentStepNumber: integer("current_step_number").default(0).notNull(),
+  isCompleted: boolean("is_completed").default(false).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const sampleWorkflowTransitions = pgTable("sample_workflow_transitions", {
+  id: uuid("id").primaryKey().defaultRandom().notNull(),
+  instanceId: uuid("instance_id")
+    .notNull()
+    .references(() => sampleWorkflowInstances.id, { onDelete: "cascade" }),
+  sampleId: uuid("sample_id")
+    .notNull()
+    .references(() => sampleAnalysis.id, { onDelete: "cascade" }),
+  stepNumber: integer("step_number").notNull(),
+  fromStatus: licenseStatusEnum("from_status").notNull(),
+  toStatus: licenseStatusEnum("to_status").notNull(),
+  actedByUserId: uuid("acted_by_user_id").references(() => users.id, { onDelete: "set null" }),
+  /** Snapshot of full name at action time to preserve immutable workflow history. */
+  actedByName: text("acted_by_name"),
+  /** Snapshot of signer signature URL at action time to preserve immutable workflow history. */
+  actedBySignatureUrl: text("acted_by_signature_url"),
+  comment: text("comment"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
 // 👉 Relations for Drizzle ORM (optional, for easier querying)

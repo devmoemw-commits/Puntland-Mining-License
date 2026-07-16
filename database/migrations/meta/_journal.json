@@ -113,6 +113,13 @@
       "when": 1760000008000,
       "tag": "0015_business_types",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1760000009000,
+      "tag": "0016_sample_workflow",
+      "breakpoints": true
     }
   ]
 }
