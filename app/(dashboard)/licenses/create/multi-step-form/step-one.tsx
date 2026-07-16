@@ -169,21 +169,19 @@ const StepOne = ({ onNext, formData }: StepOneProps) => {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Business Type</FormLabel>
-                  <div className="relative">
-                    <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 z-10" />
-                    <FormControl>
-                      <SearchableSelect
-                        options={businessTypes.map((type) => ({ value: type.name, label: type.name }))}
-                        value={field.value}
-                        onChange={field.onChange}
-                        disabled={loading}
-                        placeholder="Select business type"
-                        searchPlaceholder="Search business types..."
-                        emptyText="No business type found."
-                        triggerClassName="pl-10 capitalize"
-                      />
-                    </FormControl>
-                  </div>
+                  <FormControl>
+                    <SearchableSelect
+                      options={businessTypes.map((type) => ({ value: type.name, label: type.name }))}
+                      value={field.value}
+                      onChange={field.onChange}
+                      disabled={loading}
+                      placeholder="Select business type"
+                      searchPlaceholder="Search business types..."
+                      emptyText="No business type found."
+                      icon={<Building2 className="h-4 w-4" />}
+                      triggerClassName="capitalize"
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -216,21 +214,19 @@ const StepOne = ({ onNext, formData }: StepOneProps) => {
                   <FormLabel>
                     Region (Gobolka) <span className="text-red-500">*</span>
                   </FormLabel>
-                  <div className="relative">
-                    <MapIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 z-10" />
-                    <FormControl>
-                      <SearchableSelect
-                        options={regions.map((region) => ({ value: region.id, label: region.name }))}
-                        value={field.value}
-                        onChange={field.onChange}
-                        disabled={loading}
-                        placeholder="Select region"
-                        searchPlaceholder="Search regions..."
-                        emptyText="No region found."
-                        triggerClassName="pl-10 capitalize"
-                      />
-                    </FormControl>
-                  </div>
+                  <FormControl>
+                    <SearchableSelect
+                      options={regions.map((region) => ({ value: region.id, label: region.name }))}
+                      value={field.value}
+                      onChange={field.onChange}
+                      disabled={loading}
+                      placeholder="Select region"
+                      searchPlaceholder="Search regions..."
+                      emptyText="No region found."
+                      icon={<MapIcon className="h-4 w-4" />}
+                      triggerClassName="capitalize"
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -244,24 +240,22 @@ const StepOne = ({ onNext, formData }: StepOneProps) => {
                   <FormLabel>
                     District (Degmada) <span className="text-red-500">*</span>
                   </FormLabel>
-                  <div className="relative">
-                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 z-10" />
-                    <FormControl>
-                      <SearchableSelect
-                        options={filteredDistricts.map((district) => ({
-                          value: district.id,
-                          label: district.name,
-                        }))}
-                        value={field.value}
-                        onChange={field.onChange}
-                        disabled={!selectedRegion || loading}
-                        placeholder={selectedRegion ? "Select district" : "Choose region first"}
-                        searchPlaceholder="Search districts..."
-                        emptyText="No districts found."
-                        triggerClassName="pl-10 capitalize"
-                      />
-                    </FormControl>
-                  </div>
+                  <FormControl>
+                    <SearchableSelect
+                      options={filteredDistricts.map((district) => ({
+                        value: district.id,
+                        label: district.name,
+                      }))}
+                      value={field.value}
+                      onChange={field.onChange}
+                      disabled={!selectedRegion || loading}
+                      placeholder={selectedRegion ? "Select district" : "Choose region first"}
+                      searchPlaceholder="Search districts..."
+                      emptyText="No districts found."
+                      icon={<MapPin className="h-4 w-4" />}
+                      triggerClassName="capitalize"
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}

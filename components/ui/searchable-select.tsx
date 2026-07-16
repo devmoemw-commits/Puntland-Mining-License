@@ -28,9 +28,11 @@ interface SearchableSelectProps {
   searchPlaceholder?: string
   emptyText?: string
   disabled?: boolean
+  /** Optional leading icon rendered inside the trigger. */
+  icon?: React.ReactNode
   /** Extra classes for the popover content. */
   className?: string
-  /** Extra classes for the trigger button (e.g. `pl-10` when an icon overlaps). */
+  /** Extra classes for the trigger button. */
   triggerClassName?: string
 }
 
@@ -43,6 +45,7 @@ export function SearchableSelect({
   searchPlaceholder = "Search...",
   emptyText = "No results found.",
   disabled,
+  icon,
   className,
   triggerClassName,
 }: SearchableSelectProps) {
@@ -64,7 +67,10 @@ export function SearchableSelect({
             triggerClassName,
           )}
         >
-          <span className="truncate">{selected ? selected.label : placeholder}</span>
+          {icon ? <span className="shrink-0 text-gray-500">{icon}</span> : null}
+          <span className="flex-1 truncate text-left">
+            {selected ? selected.label : placeholder}
+          </span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
