@@ -37,6 +37,9 @@ export function SystemSettingsForm({
     initial.ministerStampUrl ?? "",
   );
   const [signatoryRole, setSignatoryRole] = useState(signatory?.roleCode ?? "");
+  const [signatoryName, setSignatoryName] = useState(
+    signatory?.fallbackName ?? "",
+  );
   const [signatoryTitle, setSignatoryTitle] = useState(signatory?.title ?? "");
   const [contactTel, setContactTel] = useState(contact?.tel ?? "");
   const [contactEmail, setContactEmail] = useState(contact?.email ?? "");
@@ -49,6 +52,7 @@ export function SystemSettingsForm({
     const res = await updateSystemSettings({
       ministerStampUrl,
       sampleSignatoryRole: signatoryRole,
+      sampleSignatoryName: signatoryName,
       sampleSignatoryTitle: signatoryTitle,
       orgContactTel: contactTel,
       orgContactEmail: contactEmail,
@@ -117,6 +121,20 @@ export function SystemSettingsForm({
                 </option>
               ))}
             </select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="signatory-name">Signatory name</Label>
+            <Input
+              id="signatory-name"
+              value={signatoryName}
+              onChange={(e) => setSignatoryName(e.target.value)}
+              placeholder="Name shown when the role holder has no profile name"
+              disabled={pending}
+            />
+            <p className="text-xs text-muted-foreground">
+              Used when no user holds the role above, or that user has no name
+              in their profile.
+            </p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="signatory-title">Signatory title</Label>

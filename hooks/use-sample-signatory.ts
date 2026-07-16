@@ -14,16 +14,16 @@ export type SampleSignatory = {
   }
 }
 
-/** Fallback shown until the configured signatory loads (matches historic letter text). */
+/** Empty placeholder while the configured signatory loads — all real values come from settings. */
 const FALLBACK: SampleSignatory = {
-  roleCode: "GENERAL_DIRECTOR",
-  name: "Eng. Ismail Mohamed Hassan",
-  title: "Director General of the Ministry of Energy, Minerals & Water",
+  roleCode: "",
+  name: "",
+  title: "",
   signatureUrl: null,
   contact: {
-    tel: "+252 907 993813, +252 661711119",
-    email: "dg.moemw@plstate.so",
-    website: "www.moemw.pl.so",
+    tel: "",
+    email: "",
+    website: "",
   },
 }
 

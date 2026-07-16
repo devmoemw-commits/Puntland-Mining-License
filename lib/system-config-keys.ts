@@ -4,6 +4,8 @@ export const SYSTEM_CONFIG_KEYS = {
   MINISTER_STAMP_URL: "minister_stamp_url",
   /** Role whose holder signs sample analysis letters (name + signature shown on the letter). */
   SAMPLE_SIGNATORY_ROLE: "sample_signatory_role",
+  /** Fallback signatory name when the role holder is missing or has no profile name. */
+  SAMPLE_SIGNATORY_NAME: "sample_signatory_name",
   /** Title line printed under the sample signatory's name. */
   SAMPLE_SIGNATORY_TITLE: "sample_signatory_title",
   /** Organization contact info printed in document footers. */

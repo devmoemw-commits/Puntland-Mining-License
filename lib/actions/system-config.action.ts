@@ -20,6 +20,7 @@ const optionalUrl = z
 const updateSchema = z.object({
   ministerStampUrl: optionalUrl,
   sampleSignatoryRole: z.string().trim().max(64).optional(),
+  sampleSignatoryName: z.string().trim().max(255).optional(),
   sampleSignatoryTitle: z.string().trim().max(255).optional(),
   orgContactTel: z.string().trim().max(255).optional(),
   orgContactEmail: z.string().trim().max(255).optional(),
@@ -42,6 +43,10 @@ export const updateSystemSettings = actionClient
       {
         key: SYSTEM_CONFIG_KEYS.SAMPLE_SIGNATORY_ROLE,
         value: parsedInput.sampleSignatoryRole || null,
+      },
+      {
+        key: SYSTEM_CONFIG_KEYS.SAMPLE_SIGNATORY_NAME,
+        value: parsedInput.sampleSignatoryName || null,
       },
       {
         key: SYSTEM_CONFIG_KEYS.SAMPLE_SIGNATORY_TITLE,

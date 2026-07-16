@@ -6,21 +6,26 @@ import { SYSTEM_CONFIG_KEYS } from "@/lib/system-config-keys";
 
 export type SampleSignatoryConfig = {
   roleCode: string;
+  /** Configured fallback name (used when the role holder is missing or has no profile name). */
+  fallbackName: string;
   title: string;
 };
 
-export type SampleSignatory = SampleSignatoryConfig & {
-  /** Display name of the user currently holding the configured role. */
+export type SampleSignatory = Omit<SampleSignatoryConfig, "fallbackName"> & {
+  /** Display name: role holder's profile name, else the configured fallback name. */
   name: string;
   /** That user's profile signature image, if uploaded. */
   signatureUrl: string | null;
 };
 
-/** Pre-configuration defaults matching the previously hardcoded letter block. */
-export const SAMPLE_SIGNATORY_DEFAULTS: SampleSignatoryConfig & { name: string } = {
+/**
+ * Last-resort defaults for a database that has not been seeded yet
+ * (migration 0017 seeds the real values into `system_config`).
+ */
+export const SAMPLE_SIGNATORY_DEFAULTS: SampleSignatoryConfig = {
   roleCode: "GENERAL_DIRECTOR",
-  name: "Eng. Ismail Mohamed Hassan",
-  title: "Director General of the Ministry of Energy, Minerals & Water",
+  fallbackName: "",
+  title: "",
 };
 
 export type OrgContact = {
@@ -29,11 +34,14 @@ export type OrgContact = {
   website: string;
 };
 
-/** Pre-configuration defaults matching the previously hardcoded letter footer. */
+/**
+ * Last-resort defaults for a database that has not been seeded yet
+ * (migration 0017 seeds the real values into `system_config`).
+ */
 export const ORG_CONTACT_DEFAULTS: OrgContact = {
-  tel: "+252 907 993813, +252 661711119",
-  email: "dg.moemw@plstate.so",
-  website: "www.moemw.pl.so",
+  tel: "",
+  email: "",
+  website: "",
 };
 
 /** Organization contact info shown in document footers (configurable in settings). */
@@ -72,6 +80,7 @@ export async function getSampleSignatoryConfig(): Promise<SampleSignatoryConfig>
       .where(
         inArray(systemConfig.configKey, [
           SYSTEM_CONFIG_KEYS.SAMPLE_SIGNATORY_ROLE,
+          SYSTEM_CONFIG_KEYS.SAMPLE_SIGNATORY_NAME,
           SYSTEM_CONFIG_KEYS.SAMPLE_SIGNATORY_TITLE,
         ]),
       );
@@ -80,15 +89,15 @@ export async function getSampleSignatoryConfig(): Promise<SampleSignatoryConfig>
       roleCode:
         map[SYSTEM_CONFIG_KEYS.SAMPLE_SIGNATORY_ROLE] ||
         SAMPLE_SIGNATORY_DEFAULTS.roleCode,
+      fallbackName:
+        map[SYSTEM_CONFIG_KEYS.SAMPLE_SIGNATORY_NAME] ||
+        SAMPLE_SIGNATORY_DEFAULTS.fallbackName,
       title:
         map[SYSTEM_CONFIG_KEYS.SAMPLE_SIGNATORY_TITLE] ||
         SAMPLE_SIGNATORY_DEFAULTS.title,
     };
   } catch {
-    return {
-      roleCode: SAMPLE_SIGNATORY_DEFAULTS.roleCode,
-      title: SAMPLE_SIGNATORY_DEFAULTS.title,
-    };
+    return { ...SAMPLE_SIGNATORY_DEFAULTS };
   }
 }
 
@@ -104,14 +113,16 @@ export async function getSampleSignatory(): Promise<SampleSignatory> {
       .limit(1);
 
     return {
-      ...config,
-      name: holder?.name?.trim() || SAMPLE_SIGNATORY_DEFAULTS.name,
+      roleCode: config.roleCode,
+      title: config.title,
+      name: holder?.name?.trim() || config.fallbackName,
       signatureUrl: holder?.signatureUrl ?? null,
     };
   } catch {
     return {
-      ...config,
-      name: SAMPLE_SIGNATORY_DEFAULTS.name,
+      roleCode: config.roleCode,
+      title: config.title,
+      name: config.fallbackName,
       signatureUrl: null,
     };
   }
