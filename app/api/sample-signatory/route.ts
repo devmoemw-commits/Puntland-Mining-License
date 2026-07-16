@@ -2,16 +2,19 @@ import { NextResponse } from "next/server";
 
 import { Permissions } from "@/lib/permissions";
 import { requireApiPermission } from "@/lib/permissions-server";
-import { getSampleSignatory } from "@/lib/data/get-sample-signatory";
+import { getOrgContact, getSampleSignatory } from "@/lib/data/get-sample-signatory";
 
-// Configured signatory for sample analysis letters (name, title, profile signature).
+// Configured signatory + org contact for sample analysis letters.
 export async function GET() {
   const denied = await requireApiPermission(Permissions.SAMPLE_ANALYSIS_ACCESS);
   if (denied) return denied;
 
   try {
-    const signatory = await getSampleSignatory();
-    return NextResponse.json(signatory);
+    const [signatory, contact] = await Promise.all([
+      getSampleSignatory(),
+      getOrgContact(),
+    ]);
+    return NextResponse.json({ ...signatory, contact });
   } catch (error) {
     console.error("Error fetching sample signatory:", error);
     return NextResponse.json(

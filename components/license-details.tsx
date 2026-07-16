@@ -587,7 +587,7 @@ export default function LicenseDetails({
                         </Button>
                         {!canPrintCertificate && (
                           <p className="text-xs text-amber-600 dark:text-amber-400">
-                            Printing is available once all workflow steps are completed.
+                            Printing is available once all approval workflow steps are completed.
                           </p>
                         )}
                       </div>

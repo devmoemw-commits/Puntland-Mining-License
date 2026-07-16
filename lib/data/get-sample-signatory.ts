@@ -23,6 +23,46 @@ export const SAMPLE_SIGNATORY_DEFAULTS: SampleSignatoryConfig & { name: string }
   title: "Director General of the Ministry of Energy, Minerals & Water",
 };
 
+export type OrgContact = {
+  tel: string;
+  email: string;
+  website: string;
+};
+
+/** Pre-configuration defaults matching the previously hardcoded letter footer. */
+export const ORG_CONTACT_DEFAULTS: OrgContact = {
+  tel: "+252 907 993813, +252 661711119",
+  email: "dg.moemw@plstate.so",
+  website: "www.moemw.pl.so",
+};
+
+/** Organization contact info shown in document footers (configurable in settings). */
+export async function getOrgContact(): Promise<OrgContact> {
+  try {
+    const rows = await db
+      .select()
+      .from(systemConfig)
+      .where(
+        inArray(systemConfig.configKey, [
+          SYSTEM_CONFIG_KEYS.ORG_CONTACT_TEL,
+          SYSTEM_CONFIG_KEYS.ORG_CONTACT_EMAIL,
+          SYSTEM_CONFIG_KEYS.ORG_CONTACT_WEBSITE,
+        ]),
+      );
+    const map = Object.fromEntries(rows.map((r) => [r.configKey, r.value ?? ""]));
+    return {
+      tel: map[SYSTEM_CONFIG_KEYS.ORG_CONTACT_TEL] || ORG_CONTACT_DEFAULTS.tel,
+      email:
+        map[SYSTEM_CONFIG_KEYS.ORG_CONTACT_EMAIL] || ORG_CONTACT_DEFAULTS.email,
+      website:
+        map[SYSTEM_CONFIG_KEYS.ORG_CONTACT_WEBSITE] ||
+        ORG_CONTACT_DEFAULTS.website,
+    };
+  } catch {
+    return { ...ORG_CONTACT_DEFAULTS };
+  }
+}
+
 /** Raw configuration values (for the settings form). */
 export async function getSampleSignatoryConfig(): Promise<SampleSignatoryConfig> {
   try {

@@ -356,14 +356,14 @@ export default function SampleForm() {
             <p className="mt-1">{signatory.title}</p>
           </div>
 
-          {/* Footer */}
+          {/* Footer — configured contact info (Settings > System Settings) */}
           <div className="mt-8 text-center text-sm border-t pt-2">
             <p>
-              <span className="font-bold">Tel:</span> +252 907 993813, +252 661711119
+              <span className="font-bold">Tel:</span> {signatory.contact.tel}
               <span className="font-bold mx-2">Office Email:</span>
-              <span className="text-blue-600 underline">dg.moemw@plstate.so</span>
+              <span className="text-blue-600 underline">{signatory.contact.email}</span>
               <span className="font-bold mx-2">Website:</span>
-              <span className="text-blue-600 underline">www.moemw.pl.so</span>
+              <span className="text-blue-600 underline">{signatory.contact.website}</span>
             </p>
           </div>
 
