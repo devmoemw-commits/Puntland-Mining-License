@@ -2,23 +2,44 @@
 
 import type * as React from "react";
 import {
+  Building2,
+  ChevronRight,
+  ChevronsUpDown,
   FileBadge,
   FileLineChartIcon as FileChartLine,
   FileText,
   LayoutDashboard,
+  LogOut,
   type LucideIcon,
   Plus,
-  TestTube2,
-  Users,
   Settings,
+  Tags,
+  TestTube2,
+  User,
+  Users,
   Workflow,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupLabel,
   SidebarHeader,
@@ -32,6 +53,7 @@ import {
 } from "@/components/ui/sidebar";
 import Link from "next/link";
 import Image from "next/image";
+import { handleSignOut } from "@/lib/actions/auth.action";
 import {
   ROUTE_PERMISSION_RULES,
   type Permission,
@@ -130,6 +152,18 @@ const navigationItems: NavItem[] = [
         permissions: ROUTE_PERMISSION_RULES["/settings"],
       },
       {
+        title: "License Categories",
+        path: "/settings/license-categories",
+        icon: Tags,
+        permissions: ROUTE_PERMISSION_RULES["/settings"],
+      },
+      {
+        title: "Business Types",
+        path: "/settings/business-types",
+        icon: Building2,
+        permissions: ROUTE_PERMISSION_RULES["/settings"],
+      },
+      {
         title: "Approval Workflows",
         path: "/settings/approval-workflows",
         icon: Workflow,
@@ -145,20 +179,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { data: session } = useSession();
   const permissionCodes = session?.user?.permissionCodes ?? [];
 
-  const isActive = (path: string) => {
-    return pathname === path;
-  };
+  const isActive = (path: string) => pathname === path;
 
-  const isChildActive = (childPath: string) => {
-    return pathname === childPath;
-  };
-
-  const canSeeNavItem = (item: NavItem) => {
-    if (item.children?.length) {
-      return item.children.some((child) => canSeeChild(child, item));
-    }
-    return sessionHasAnyPermission(permissionCodes, item.permissions);
-  };
+  const isSectionActive = (item: NavItem) =>
+    item.path === "/" ? pathname === "/" : pathname.startsWith(item.path);
 
   const canSeeChild = (child: SubNavItem, parent: NavItem) => {
     const effective =
@@ -168,24 +192,112 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     return sessionHasAnyPermission(permissionCodes, effective);
   };
 
+  const canSeeNavItem = (item: NavItem) => {
+    if (item.children?.length) {
+      return item.children.some((child) => canSeeChild(child, item));
+    }
+    return sessionHasAnyPermission(permissionCodes, item.permissions);
+  };
+
   const filteredNavigationItems = navigationItems.filter(canSeeNavItem);
-  const mainItems = filteredNavigationItems.filter((item) => item.section !== "management");
+  const mainItems = filteredNavigationItems.filter(
+    (item) => item.section !== "management",
+  );
   const managementItems = filteredNavigationItems.filter(
     (item) => item.section === "management",
   );
 
+  const userName = session?.user?.name ?? "User";
+  const userRole = session?.user?.role ?? "";
+  const userEmail = session?.user?.email ?? "";
+  const userInitials =
+    userName
+      .split(" ")
+      .slice(0, 2)
+      .map((n: string) => n.charAt(0))
+      .join("")
+      .toUpperCase() || "U";
+
+  const renderNavItem = (item: NavItem) => {
+    if (item.children?.length) {
+      const visibleChildren = item.children.filter((child) =>
+        canSeeChild(child, item),
+      );
+      return (
+        <Collapsible
+          key={item.title}
+          asChild
+          defaultOpen={isSectionActive(item)}
+          className="group/collapsible"
+        >
+          <SidebarMenuItem>
+            <CollapsibleTrigger asChild>
+              <SidebarMenuButton
+                tooltip={item.title}
+                isActive={isSectionActive(item)}
+                className="rounded-lg font-medium data-[active=true]:bg-indigo-50 data-[active=true]:text-indigo-700 dark:data-[active=true]:bg-indigo-950/40 dark:data-[active=true]:text-indigo-300"
+              >
+                <item.icon className="size-4" />
+                <span>{item.title}</span>
+                <ChevronRight className="ml-auto size-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+              </SidebarMenuButton>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <SidebarMenuSub className="mx-0 ml-4 border-l border-sidebar-border px-1.5">
+                {visibleChildren.map((child) => (
+                  <SidebarMenuSubItem key={child.title}>
+                    <SidebarMenuSubButton
+                      asChild
+                      isActive={isActive(child.path)}
+                      className="rounded-md data-[active=true]:bg-indigo-600 data-[active=true]:text-white data-[active=true]:font-medium"
+                    >
+                      <Link href={child.path}>
+                        <child.icon className="size-3.5" />
+                        <span>{child.title}</span>
+                      </Link>
+                    </SidebarMenuSubButton>
+                  </SidebarMenuSubItem>
+                ))}
+              </SidebarMenuSub>
+            </CollapsibleContent>
+          </SidebarMenuItem>
+        </Collapsible>
+      );
+    }
+
+    return (
+      <SidebarMenuItem key={item.title}>
+        <SidebarMenuButton
+          asChild
+          tooltip={item.title}
+          isActive={isActive(item.path)}
+          className="rounded-lg font-medium data-[active=true]:bg-indigo-600 data-[active=true]:text-white"
+        >
+          <Link href={item.path}>
+            <item.icon className="size-4" />
+            <span>{item.title}</span>
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    );
+  };
+
   return (
-    <Sidebar collapsible="icon" className="border-r border-slate-200/70 dark:border-slate-800" {...props}>
-      <SidebarHeader>
+    <Sidebar
+      collapsible="icon"
+      className="border-r border-sidebar-border"
+      {...props}
+    >
+      <SidebarHeader className="border-b border-sidebar-border">
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
               size="lg"
               asChild
-              className="rounded-xl px-2.5 py-2 hover:bg-slate-100 dark:hover:bg-slate-800"
+              className="rounded-xl hover:bg-sidebar-accent"
             >
               <Link href="/">
-                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-white text-sidebar-primary-foreground shadow-sm dark:bg-slate-900">
+                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-white shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
                   <Image
                     src={"/assets/puntland_logo.svg"}
                     alt="logo"
@@ -196,120 +308,94 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 </div>
                 <div className="flex flex-col gap-0.5 leading-none">
                   <span className="font-semibold tracking-tight">WTMB</span>
-                  <span className="text-[11px] text-slate-500">Mining License System</span>
+                  <span className="text-[11px] text-muted-foreground">
+                    Mining License System
+                  </span>
                 </div>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
+
       <SidebarContent className="px-1">
-        <SidebarGroup className="pt-0">
-          <SidebarGroupLabel className="text-[11px] uppercase tracking-wide text-slate-500">
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-[11px] uppercase tracking-wider text-muted-foreground">
             Main
           </SidebarGroupLabel>
-          <SidebarMenu className="gap-1.5">
-            {mainItems.map((item) => (
-              <SidebarMenuItem key={item.title}>
-                {item.children ? (
-                  <>
-                    <SidebarMenuButton
-                      isActive={pathname.startsWith(item.path)}
-                      className="rounded-lg px-2.5 data-[active=true]:bg-indigo-50 data-[active=true]:text-indigo-700 data-[active=true]:font-semibold hover:bg-slate-100 dark:data-[active=true]:bg-indigo-950/40 dark:data-[active=true]:text-indigo-300 dark:hover:bg-slate-800"
-                    >
-                      <item.icon className="size-4" />
-                      <span>{item.title}</span>
-                    </SidebarMenuButton>
-                    <SidebarMenuSub className="ml-2 space-y-1 border-l border-slate-200/80 dark:border-slate-800">
-                      {item.children
-                        .filter((child) => canSeeChild(child, item))
-                        .map((child) => (
-                        <SidebarMenuSubItem key={child.title}>
-                          <SidebarMenuSubButton
-                            asChild
-                            isActive={isChildActive(child.path)}
-                            className="rounded-md px-2 data-[active=true]:bg-indigo-600 data-[active=true]:text-white hover:bg-slate-100 dark:hover:bg-slate-800"
-                          >
-                            <Link href={child.path}>
-                              <child.icon className="size-3.5" />
-                              {child.title}
-                            </Link>
-                          </SidebarMenuSubButton>
-                        </SidebarMenuSubItem>
-                      ))}
-                    </SidebarMenuSub>
-                  </>
-                ) : (
-                  <SidebarMenuButton
-                    asChild
-                    isActive={isActive(item.path)}
-                    className="rounded-lg px-2.5 data-[active=true]:bg-indigo-600 data-[active=true]:font-semibold data-[active=true]:text-white hover:bg-slate-100 dark:hover:bg-slate-800"
-                  >
-                    <Link href={item.path}>
-                      <item.icon className="size-4" />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                )}
-              </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
+          <SidebarMenu className="gap-1">{mainItems.map(renderNavItem)}</SidebarMenu>
         </SidebarGroup>
 
         {managementItems.length > 0 ? (
           <SidebarGroup>
-            <SidebarGroupLabel className="text-[11px] uppercase tracking-wide text-slate-500">
+            <SidebarGroupLabel className="text-[11px] uppercase tracking-wider text-muted-foreground">
               Administration
             </SidebarGroupLabel>
-            <SidebarMenu className="gap-1.5">
-              {managementItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  {item.children ? (
-                    <>
-                      <SidebarMenuButton
-                        isActive={pathname.startsWith(item.path)}
-                        className="rounded-lg px-2.5 data-[active=true]:bg-indigo-50 data-[active=true]:text-indigo-700 data-[active=true]:font-semibold hover:bg-slate-100 dark:data-[active=true]:bg-indigo-950/40 dark:data-[active=true]:text-indigo-300 dark:hover:bg-slate-800"
-                      >
-                        <item.icon className="size-4" />
-                        <span>{item.title}</span>
-                      </SidebarMenuButton>
-                      <SidebarMenuSub className="ml-2 space-y-1 border-l border-slate-200/80 dark:border-slate-800">
-                        {item.children
-                          .filter((child) => canSeeChild(child, item))
-                          .map((child) => (
-                            <SidebarMenuSubItem key={child.title}>
-                              <SidebarMenuSubButton
-                                asChild
-                                isActive={isChildActive(child.path)}
-                                className="rounded-md px-2 data-[active=true]:bg-indigo-600 data-[active=true]:text-white hover:bg-slate-100 dark:hover:bg-slate-800"
-                              >
-                                <Link href={child.path}>
-                                  <child.icon className="size-3.5" />
-                                  {child.title}
-                                </Link>
-                              </SidebarMenuSubButton>
-                            </SidebarMenuSubItem>
-                          ))}
-                      </SidebarMenuSub>
-                    </>
-                  ) : (
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive(item.path)}
-                      className="rounded-lg px-2.5 data-[active=true]:bg-indigo-600 data-[active=true]:font-semibold data-[active=true]:text-white hover:bg-slate-100 dark:hover:bg-slate-800"
-                    >
-                      <Link href={item.path}>
-                        <item.icon className="size-4" />
-                        <span>{item.title}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  )}
-                </SidebarMenuItem>
-              ))}
+            <SidebarMenu className="gap-1">
+              {managementItems.map(renderNavItem)}
             </SidebarMenu>
           </SidebarGroup>
         ) : null}
       </SidebarContent>
+
+      <SidebarFooter className="border-t border-sidebar-border">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <SidebarMenuButton
+                  size="lg"
+                  className="rounded-xl data-[state=open]:bg-sidebar-accent"
+                >
+                  <Avatar className="size-8 rounded-lg">
+                    <AvatarFallback className="rounded-lg bg-indigo-600 text-xs font-semibold text-white">
+                      {userInitials}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex flex-col gap-0.5 leading-none">
+                    <span className="truncate text-sm font-medium">
+                      {userName}
+                    </span>
+                    <span className="truncate text-[11px] text-muted-foreground">
+                      {userRole.replaceAll("_", " ")}
+                    </span>
+                  </div>
+                  <ChevronsUpDown className="ml-auto size-4 text-muted-foreground" />
+                </SidebarMenuButton>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                side="top"
+                align="start"
+                className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
+              >
+                <DropdownMenuLabel className="font-normal">
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium leading-none">{userName}</p>
+                    <p className="text-xs leading-none text-muted-foreground">
+                      {userEmail}
+                    </p>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link href="/user/profile" className="flex items-center gap-2">
+                    <User className="size-4" />
+                    Profile Settings
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950 cursor-pointer"
+                  onClick={() => handleSignOut()}
+                >
+                  <LogOut className="mr-2 size-4" />
+                  Sign Out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
       <SidebarRail />
     </Sidebar>
   );

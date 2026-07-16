@@ -1,11 +1,44 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
+import Link from "next/link";
+import {
+  Building2,
+  ChevronRight,
+  type LucideIcon,
+  Stamp,
+  Tags,
+  Workflow,
+} from "lucide-react";
+
 import { Permissions } from "@/lib/permissions";
 import { userHasPermission } from "@/lib/permissions-server";
 import { getCertificateAssets } from "@/lib/data/get-system-config";
 import { SystemSettingsForm } from "@/components/settings/system-settings-form";
-import Link from "next/link";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+type SettingsLink = {
+  title: string;
+  description: string;
+  href: string;
+  icon: LucideIcon;
+};
+
+function SettingsCard({ item }: { item: SettingsLink }) {
+  return (
+    <Link
+      href={item.href}
+      className="group flex items-start gap-4 rounded-xl border bg-card p-5 shadow-sm transition-all hover:border-indigo-300 hover:shadow-md dark:hover:border-indigo-800"
+    >
+      <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 transition-colors group-hover:bg-indigo-600 group-hover:text-white dark:bg-indigo-950/60 dark:text-indigo-300">
+        <item.icon className="size-5" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="font-medium leading-tight">{item.title}</p>
+        <p className="mt-1 text-sm text-muted-foreground">{item.description}</p>
+      </div>
+      <ChevronRight className="mt-1 size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-indigo-600 dark:group-hover:text-indigo-300" />
+    </Link>
+  );
+}
 
 export default async function SettingsPage() {
   const session = await auth();
@@ -31,83 +64,70 @@ export default async function SettingsPage() {
 
   const assets = canManageSystemSettings ? await getCertificateAssets() : null;
 
+  const settingsLinks: SettingsLink[] = [
+    ...(canManageSystemSettings
+      ? [
+          {
+            title: "License Categories",
+            description:
+              "Predefined license categories and their New License / Renewal fees.",
+            href: "/settings/license-categories",
+            icon: Tags,
+          },
+          {
+            title: "Business Types",
+            description:
+              "Predefined company business types used in the application form.",
+            href: "/settings/business-types",
+            icon: Building2,
+          },
+        ]
+      : []),
+    ...(canViewApprovalWorkflows
+      ? [
+          {
+            title: "Approval Workflows",
+            description:
+              "Programmable approval steps, signature steps, and role assignments.",
+            href: "/settings/approval-workflows",
+            icon: Workflow,
+          },
+        ]
+      : []),
+  ];
+
   return (
-    <div className="container mx-auto py-8 px-4">
-      <h1 className="text-2xl font-semibold tracking-tight mb-2">
-        System configuration
-      </h1>
-      <p className="text-muted-foreground text-sm mb-8">
-        Configure organization modules and approval behavior.
-      </p>
-      <div className="grid gap-4 md:grid-cols-2 mb-8">
-        {canManageSystemSettings && (
-          <Card>
-            <CardHeader>
-              <CardTitle>System configuration</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground mb-3">
-                Manage certificate and organization assets.
-              </p>
-            </CardContent>
-          </Card>
-        )}
-        {canManageSystemSettings && (
-          <Card>
-            <CardHeader>
-              <CardTitle>License categories</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground mb-3">
-                Manage the predefined license categories and their fees.
-              </p>
-              <Link
-                className="text-sm underline underline-offset-4"
-                href="/settings/license-categories"
-              >
-                Manage license categories
-              </Link>
-            </CardContent>
-          </Card>
-        )}
-        {canManageSystemSettings && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Business types</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground mb-3">
-                Manage the predefined company business types.
-              </p>
-              <Link
-                className="text-sm underline underline-offset-4"
-                href="/settings/business-types"
-              >
-                Manage business types
-              </Link>
-            </CardContent>
-          </Card>
-        )}
-        {canViewApprovalWorkflows && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Approval workflows</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground mb-3">
-                Define programmable approval workflows before usage.
-              </p>
-              <Link
-                className="text-sm underline underline-offset-4"
-                href="/settings/approval-workflows"
-              >
-                Open approval workflows
-              </Link>
-            </CardContent>
-          </Card>
-        )}
+    <div className="container mx-auto max-w-5xl py-8 px-4">
+      <div className="mb-8">
+        <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Manage organization configuration, predefined lists, and approval
+          behavior.
+        </p>
       </div>
-      {assets && <SystemSettingsForm initial={assets} />}
+
+      {settingsLinks.length > 0 && (
+        <section className="mb-10">
+          <h2 className="mb-3 text-sm font-medium uppercase tracking-wider text-muted-foreground">
+            Configuration
+          </h2>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {settingsLinks.map((item) => (
+              <SettingsCard key={item.href} item={item} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {assets && (
+        <section>
+          <h2 className="mb-3 flex items-center gap-2 text-sm font-medium uppercase tracking-wider text-muted-foreground">
+            <Stamp className="size-4" />
+            Certificate assets
+          </h2>
+          <SystemSettingsForm initial={assets} />
+        </section>
+      )}
     </div>
   );
 }
