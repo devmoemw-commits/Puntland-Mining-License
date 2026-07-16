@@ -24,6 +24,8 @@ type LicenseWorkflowView = {
   workflowCode: string;
   currentStepNumber: number;
   isCompleted: boolean;
+  /** True when every step in the definition has been executed (nothing pending). */
+  allStepsCompleted: boolean;
   /** True when the workflow defines a dedicated signature step (assigned signer). */
   hasSignatureStep: boolean;
   nextStep: {
@@ -208,6 +210,8 @@ async function getLicenseWorkflowByLicenseId(
     allowedRoles: string[];
   } | null = null;
   let hasSignatureStep = false;
+  // Default true so unparseable/legacy definitions never block certificate printing.
+  let allStepsCompleted = true;
   try {
     const definitionSource =
       instanceRow.instance.definitionSnapshot ??
@@ -227,6 +231,12 @@ async function getLicenseWorkflowByLicenseId(
         .slice()
         .sort((a, b) => Number(a.stepNumber ?? 0) - Number(b.stepNumber ?? 0));
       hasSignatureStep = ordered.some((s) => s.kind === "SIGNATURE");
+      const maxStepNumber = ordered.reduce(
+        (max, s) => Math.max(max, Number(s.stepNumber ?? 0)),
+        0,
+      );
+      allStepsCompleted =
+        instanceRow.instance.currentStepNumber >= maxStepNumber;
       const roleCodes = Array.from(
         new Set(
           ordered.flatMap((step) =>
@@ -296,16 +306,19 @@ async function getLicenseWorkflowByLicenseId(
     approvalRoles = [];
   }
 
+  const isLegacyFrozen =
+    !instanceRow.instance.definitionSnapshot &&
+    instanceRow.instance.currentStepNumber > 0 &&
+    instanceRow.instance.createdAt < instanceRow.workflow.updatedAt;
+
   return {
     workflowName: instanceRow.workflow.name,
     workflowCode: instanceRow.workflow.code,
     currentStepNumber: instanceRow.instance.currentStepNumber,
     hasSignatureStep,
-    isCompleted:
-      instanceRow.instance.isCompleted ||
-      (!instanceRow.instance.definitionSnapshot &&
-        instanceRow.instance.currentStepNumber > 0 &&
-        instanceRow.instance.createdAt < instanceRow.workflow.updatedAt),
+    // Legacy instances frozen on an old workflow version can't progress — don't block them.
+    allStepsCompleted: allStepsCompleted || isLegacyFrozen,
+    isCompleted: instanceRow.instance.isCompleted || isLegacyFrozen,
     nextStep,
     approvalRoles,
     transitions: transitionRows.map((row) => ({

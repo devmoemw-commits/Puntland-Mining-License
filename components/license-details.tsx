@@ -71,6 +71,8 @@ export default function LicenseDetails({
     workflowCode: string;
     currentStepNumber: number;
     isCompleted: boolean;
+    /** True when every step in the workflow definition has been executed. */
+    allStepsCompleted?: boolean;
     nextStep: {
       kind: "TRANSITION" | "SIGNATURE";
       fromStatus: string;
@@ -108,6 +110,10 @@ export default function LicenseDetails({
   const canSignCertificate = (session?.user?.permissionCodes ?? []).includes(
     Permissions.LICENSE_MODERATE,
   );
+
+  // Printing requires an approved license AND a fully completed workflow (all steps done).
+  const canPrintCertificate =
+    license.status === "APPROVED" && (workflow ? workflow.allStepsCompleted !== false : true);
 
   const router = useRouter();
 
@@ -569,14 +575,22 @@ export default function LicenseDetails({
                           )}
                         </div>
                       )}
-                      <Button
-                        variant="default"
-                        onClick={handlePrint}
-                        className="w-full cursor-pointer sm:w-auto"
-                      >
-                        <Printer />
-                        Print Certificate
-                      </Button>
+                      <div className="flex flex-col items-stretch gap-1 sm:items-end">
+                        <Button
+                          variant="default"
+                          onClick={handlePrint}
+                          disabled={!canPrintCertificate}
+                          className="w-full cursor-pointer sm:w-auto"
+                        >
+                          <Printer />
+                          Print Certificate
+                        </Button>
+                        {!canPrintCertificate && (
+                          <p className="text-xs text-amber-600 dark:text-amber-400">
+                            Printing is available once all workflow steps are completed.
+                          </p>
+                        )}
+                      </div>
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>
