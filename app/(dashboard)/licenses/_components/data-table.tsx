@@ -36,6 +36,7 @@ export function DataTable<TData, TValue>({ columns, data }: DataTableProps<TData
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
   const [rowSelection, setRowSelection] = useState({})
+  const [globalFilter, setGlobalFilter] = useState("")
 
   const table = useReactTable({
     data,
@@ -48,11 +49,22 @@ export function DataTable<TData, TValue>({ columns, data }: DataTableProps<TData
     getFilteredRowModel: getFilteredRowModel(),
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
+    onGlobalFilterChange: setGlobalFilter,
+    // Search matches company name OR license number
+    globalFilterFn: (row, _columnId, filterValue) => {
+      const search = String(filterValue).trim().toLowerCase()
+      if (!search) return true
+      const original = row.original as Record<string, unknown>
+      return ["company_name", "license_ref_id"].some((key) =>
+        String(original[key] ?? "").toLowerCase().includes(search),
+      )
+    },
     state: {
       sorting,
       columnFilters,
       columnVisibility,
       rowSelection,
+      globalFilter,
     },
   })
 
@@ -78,9 +90,9 @@ export function DataTable<TData, TValue>({ columns, data }: DataTableProps<TData
         <div className="flex items-center justify-between gap-6 w-full">
           <div className="flex flex-1 items-center space-x-2">
             <Input
-              placeholder="Filter by company name..."
-              value={(table.getColumn("company_name")?.getFilterValue() as string) ?? ""}
-              onChange={(event) => table.getColumn("company_name")?.setFilterValue(event.target.value)}
+              placeholder="Search by company or license no..."
+              value={globalFilter}
+              onChange={(event) => setGlobalFilter(event.target.value)}
               className="max-w-sm"
             />
             {table.getColumn("status") && (
