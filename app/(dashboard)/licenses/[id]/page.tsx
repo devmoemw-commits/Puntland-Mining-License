@@ -336,21 +336,33 @@ const Page = async ({ params }: Props) => {
     return <div className="p-6">License not found</div>;
   }
 
+  // Whether the viewing user has a profile signature (needed to sign certificates).
+  const session = await auth();
+  let viewerHasSignature = false;
+  if (session?.user?.id) {
+    const [viewer] = await db
+      .select({ url: users.signatureImageUrl })
+      .from(users)
+      .where(eq(users.id, session.user.id))
+      .limit(1);
+    viewerHasSignature = !!viewer?.url;
+  }
+
   const [certificateAssets, workflow] = await Promise.all([
     getCertificateAssets(),
     getLicenseWorkflowByLicenseId(id, license.status ?? "PENDING"),
   ]);
 
+  // The certificate signature always comes from a real user's profile signature:
+  // an assigned signer's workflow signature step wins; otherwise whoever signed
+  // the license (workflow approval or the manual signature toggle).
   let signerSignatureUrl: string | null = null;
-  if (workflow?.hasSignatureStep) {
-    // When the workflow defines a signature step, only the assigned signer's
-    // signature (captured on that step) may appear on the certificate — never the approver's.
-    const signatureTransition = workflow.transitions.find(
-      (t) => t.fromStatus === t.toStatus && !!t.actedBySignatureUrl,
-    );
-    signerSignatureUrl = signatureTransition?.actedBySignatureUrl ?? null;
-  } else if (license.signature && license.signed_by_user_id) {
-    // Legacy workflows without a signature step keep the approving signer's signature.
+  const signatureTransition = workflow?.transitions.find(
+    (t) => t.fromStatus === t.toStatus && !!t.actedBySignatureUrl,
+  );
+  signerSignatureUrl = signatureTransition?.actedBySignatureUrl ?? null;
+
+  if (!signerSignatureUrl && license.signature && license.signed_by_user_id) {
     const signer = await db
       .select({ url: users.signatureImageUrl })
       .from(users)
@@ -365,6 +377,7 @@ const Page = async ({ params }: Props) => {
       certificateAssets={certificateAssets}
       signerSignatureUrl={signerSignatureUrl}
       workflow={workflow}
+      viewerHasSignature={viewerHasSignature}
     />
   );
 };

@@ -56,11 +56,14 @@ export default function LicenseDetails({
   certificateAssets,
   signerSignatureUrl,
   workflow,
+  viewerHasSignature = true,
 }: {
   license: License;
   certificateAssets?: CertificateAssets;
   /** ImageKit URL from the signing user’s profile (`users.signature_image_url`). */
   signerSignatureUrl?: string | null;
+  /** Whether the viewing user has uploaded a profile signature (required to sign). */
+  viewerHasSignature?: boolean;
   workflow?: {
     workflowName: string;
     workflowCode: string;
@@ -270,7 +273,7 @@ export default function LicenseDetails({
         });
 
         if (result?.data?.error) {
-          toast.error("Failed to update signature");
+          toast.error(String(result.data.error));
           // Revert the checkbox state on error
           setSignature(!newSignatureStatus);
         } else if (result?.data?.success) {
@@ -528,9 +531,9 @@ export default function LicenseDetails({
                             )}
                             <input
                               type="checkbox"
-                              className="ml-1 cursor-pointer"
+                              className="ml-1 cursor-pointer disabled:cursor-not-allowed"
                               checked={signature}
-                              disabled={isPending}
+                              disabled={isPending || !viewerHasSignature}
                               onChange={(e) => {
                                 const newValue = e.target.checked;
                                 setSignature(newValue); // Optimistic update
@@ -538,6 +541,14 @@ export default function LicenseDetails({
                               }}
                             />
                           </div>
+                          {!viewerHasSignature && (
+                            <Link
+                              href="/user/profile"
+                              className="text-xs text-amber-600 underline underline-offset-2 dark:text-amber-400"
+                            >
+                              Upload your signature in Profile to sign
+                            </Link>
+                          )}
                         </div>
                       )}
                       <Button

@@ -539,6 +539,21 @@ export const UpdateLicenseSignature = actionClient
     }
 
     try {
+      // The certificate renders the signer's profile signature — require one before signing.
+      if (signature) {
+        const [actor] = await db
+          .select({ signatureImageUrl: users.signatureImageUrl })
+          .from(users)
+          .where(eq(users.id, session.user.id))
+          .limit(1);
+        if (!actor?.signatureImageUrl) {
+          return {
+            error:
+              "You must upload your signature in profile before signing a certificate.",
+          };
+        }
+      }
+
       await db
         .update(licenses)
         .set({
