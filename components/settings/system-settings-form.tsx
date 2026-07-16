@@ -9,15 +9,30 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { SystemAssetUpload } from "@/components/settings/system-asset-upload";
 import { updateSystemSettings } from "@/lib/actions/system-config.action";
 import { toast } from "sonner";
 import type { CertificateAssets } from "@/lib/data/get-system-config";
+import type { SampleSignatoryConfig } from "@/lib/data/get-sample-signatory";
 
-export function SystemSettingsForm({ initial }: { initial: CertificateAssets }) {
+type RoleOption = { code: string; name: string };
+
+export function SystemSettingsForm({
+  initial,
+  signatory,
+  roleOptions = [],
+}: {
+  initial: CertificateAssets;
+  signatory?: SampleSignatoryConfig;
+  roleOptions?: RoleOption[];
+}) {
   const [ministerStampUrl, setMinisterStampUrl] = useState(
     initial.ministerStampUrl ?? "",
   );
+  const [signatoryRole, setSignatoryRole] = useState(signatory?.roleCode ?? "");
+  const [signatoryTitle, setSignatoryTitle] = useState(signatory?.title ?? "");
   const [pending, setPending] = useState(false);
 
   async function onSubmit(e: React.FormEvent) {
@@ -25,6 +40,8 @@ export function SystemSettingsForm({ initial }: { initial: CertificateAssets }) 
     setPending(true);
     const res = await updateSystemSettings({
       ministerStampUrl,
+      sampleSignatoryRole: signatoryRole,
+      sampleSignatoryTitle: signatoryTitle,
     });
     setPending(false);
     if (res?.serverError) {
@@ -32,7 +49,7 @@ export function SystemSettingsForm({ initial }: { initial: CertificateAssets }) 
       return;
     }
     if (res?.validationErrors) {
-      toast.error("Check the URLs and try again.");
+      toast.error("Check the values and try again.");
       return;
     }
     const data = res?.data;
@@ -61,11 +78,51 @@ export function SystemSettingsForm({ initial }: { initial: CertificateAssets }) 
             value={ministerStampUrl}
             onUrlChange={setMinisterStampUrl}
           />
-          <Button type="submit" disabled={pending}>
-            {pending ? "Saving…" : "Save settings"}
-          </Button>
         </CardContent>
       </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Sample analysis signatory</CardTitle>
+          <CardDescription>
+            The letter shows the name and profile signature of the user who
+            holds this role, with the title line below it.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="signatory-role">Signatory role</Label>
+            <select
+              id="signatory-role"
+              className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+              value={signatoryRole}
+              onChange={(e) => setSignatoryRole(e.target.value)}
+              disabled={pending}
+            >
+              <option value="">Default (General Director)</option>
+              {roleOptions.map((role) => (
+                <option key={role.code} value={role.code}>
+                  {role.name} ({role.code})
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="signatory-title">Signatory title</Label>
+            <Input
+              id="signatory-title"
+              value={signatoryTitle}
+              onChange={(e) => setSignatoryTitle(e.target.value)}
+              placeholder="Director General of the Ministry of Energy, Minerals & Water"
+              disabled={pending}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Button type="submit" disabled={pending}>
+        {pending ? "Saving…" : "Save settings"}
+      </Button>
     </form>
   );
 }

@@ -5,6 +5,8 @@ import { Stamp } from "lucide-react";
 import { Permissions } from "@/lib/permissions";
 import { userHasPermission } from "@/lib/permissions-server";
 import { getCertificateAssets } from "@/lib/data/get-system-config";
+import { getSampleSignatoryConfig } from "@/lib/data/get-sample-signatory";
+import { listRoles } from "@/lib/data/get-roles";
 import { SystemSettingsForm } from "@/components/settings/system-settings-form";
 
 export default async function SettingsPage() {
@@ -23,7 +25,11 @@ export default async function SettingsPage() {
     redirect("/?error=unauthorized");
   }
 
-  const assets = await getCertificateAssets();
+  const [assets, signatory, roles] = await Promise.all([
+    getCertificateAssets(),
+    getSampleSignatoryConfig(),
+    listRoles(),
+  ]);
 
   return (
     <div className="container mx-auto max-w-5xl py-8 px-4">
@@ -40,7 +46,11 @@ export default async function SettingsPage() {
           <Stamp className="size-4" />
           Certificate assets
         </h2>
-        <SystemSettingsForm initial={assets} />
+        <SystemSettingsForm
+          initial={assets}
+          signatory={signatory}
+          roleOptions={roles.map((r) => ({ code: r.code, name: r.name }))}
+        />
       </section>
     </div>
   );

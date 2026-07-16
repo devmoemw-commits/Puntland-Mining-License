@@ -13,6 +13,7 @@ import { Form, FormControl, FormField, FormItem, FormMessage } from "@/component
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import CountrySelector from "./country-selector"
+import { useSampleSignatory } from "@/hooks/use-sample-signatory"
 
 // Form validation schema
 const formSchema = z.object({
@@ -38,6 +39,7 @@ export default function SampleForm() {
   const router = useRouter()
   const [refNumber, setRefNumber] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const signatory = useSampleSignatory()
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -348,10 +350,10 @@ export default function SampleForm() {
             <p>Thanks for your kind cooperation</p>
           </div>
 
-          {/* Signature */}
+          {/* Signature — configured signatory (Settings > System Settings) */}
           <div className="mt-8 text-center">
-            <p className="font-bold">Eng. Ismail Mohamed Hassan</p>
-            <p className="mt-1">Director General of the Ministry of Energy, Minerals & Water</p>
+            <p className="font-bold">{signatory.name}</p>
+            <p className="mt-1">{signatory.title}</p>
           </div>
 
           {/* Footer */}

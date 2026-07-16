@@ -27,6 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import CountrySelector from "@/components/country-selector";
+import { useSampleSignatory } from "@/hooks/use-sample-signatory";
 
 // Form validation schema
 const formSchema = z.object({
@@ -82,6 +83,7 @@ export default function ReusableSampleForm({
   const { data: session } = useSession();
   const [signature, setSignature] = useState<boolean>(false);
   const [isPending, startTransition] = useTransition();
+  const signatory = useSampleSignatory();
 
   // Initialize form with react-hook-form
   const form = useForm<z.infer<typeof formSchema>>({
@@ -558,25 +560,29 @@ export default function ReusableSampleForm({
             <p>Thanks for your kind cooperation</p>
           </div>
 
-          {/* Signature Section */}
+          {/* Signature Section — configured signatory (Settings > System Settings) */}
           <div className="mt-14 text-center">
-            <p className="font-bold">Eng. Ismail Mohamed Hassan</p>
-            <p className="mt-1">
-              Director General of the Ministry of Energy, Minerals & Water
-            </p>
+            <p className="font-bold">{signatory.name}</p>
+            <p className="mt-1">{signatory.title}</p>
             {/* Show signature image only when signed */}
-            {signature && (
-              <div className="flex justify-center mt-4">
-                <div className="relative w-[140px] h-[70px] print:w-[200px] print:h-[100px]">
-                  <Image
-                    src="/assets/director-signature.png"
-                    alt="Signature"
-                    fill
-                    className="object-contain"
-                  />
+            {signature &&
+              (signatory.signatureUrl ? (
+                <div className="flex justify-center mt-4">
+                  <div className="relative w-[140px] h-[70px] print:w-[200px] print:h-[100px]">
+                    <Image
+                      src={signatory.signatureUrl}
+                      alt="Signature"
+                      fill
+                      className="object-contain"
+                      unoptimized
+                    />
+                  </div>
                 </div>
-              </div>
-            )}
+              ) : (
+                <p className="mt-2 text-xs text-amber-600 print:hidden">
+                  The signatory has not uploaded a signature in their profile.
+                </p>
+              ))}
           </div>
 
           {/* Footer */}

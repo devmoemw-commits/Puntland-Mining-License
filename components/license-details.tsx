@@ -146,7 +146,16 @@ export default function LicenseDetails({
         height: 100% !important;
       }
 
-      /* Print the certificate at its intended paper size */
+      /* Neutralize the cloned wrapper (w-fit) so the certificate keeps its own size */
+      body > * {
+        width: 297mm !important;
+        height: 210mm !important;
+        margin: 0 !important;
+        max-width: none !important;
+      }
+
+      /* Print the certificate at its exact paper size. Percentages collapse here:
+         the card's children are absolutely positioned, so it has no intrinsic size. */
       [data-slot="card"] {
         box-shadow: none !important;
         border: 0 !important;
@@ -154,9 +163,10 @@ export default function LicenseDetails({
         /* Remove shadcn Card padding/margins and fill page */
         padding: 0 !important;
         margin: 0 !important;
-        width: 100% !important;
-        height: 100% !important;
+        width: 297mm !important;
+        height: 210mm !important;
         max-width: none !important;
+        aspect-ratio: auto !important;
       }
 
       /* Print-only: push certificate header down */
