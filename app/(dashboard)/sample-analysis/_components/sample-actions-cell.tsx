@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Eye, MoreHorizontal } from "lucide-react"
+import { Eye, MoreHorizontal, Pencil } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -58,6 +58,12 @@ export function SampleActionsCell({ sample }: SampleActionsCellProps) {
             <Link href={`/sample-analysis/${sample.id}`} className="flex items-center">
               <Eye className="mr-2 h-4 w-4" />
               View
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <Link href={`/sample-analysis/edit/${sample.id}`} className="flex items-center">
+              <Pencil className="mr-2 h-4 w-4" />
+              Edit
             </Link>
           </DropdownMenuItem>
         </DropdownMenuContent>

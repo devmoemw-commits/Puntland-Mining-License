@@ -1,5 +1,14 @@
 import type React from "react"
-import { MoreVertical, FileBadge, FileCheck2, ShieldAlert, File } from "lucide-react"
+import {
+  MoreVertical,
+  FileBadge,
+  FileCheck2,
+  ShieldAlert,
+  File,
+  Clock,
+  PauseCircle,
+  DollarSign,
+} from "lucide-react"
 import { cn } from "@/lib/utils"
 import { auth } from "@/auth"
 import { db } from "@/database/drizzle"
@@ -21,18 +30,28 @@ interface MetricCardProps {
  * cookies are not sent to absolute URLs, so /api/* returns 401 JSON `{ error }`, not an array.
  * Read from the DB here (same as /api/licenses and /api/samples) with matching permission rules.
  */
+type MetricLicenseRow = {
+  status: string
+  expire_date: Date
+  calculated_fee: string | null
+}
+
 async function loadDashboardMetrics() {
   const session = await auth()
   if (!session?.user) {
     return {
-      licenseRows: [] as { expire_date: Date }[],
+      licenseRows: [] as MetricLicenseRow[],
       sampleCount: 0,
     }
   }
 
-  const licenseRows = await db
-    .select({ expire_date: licenses.expire_date })
-    .from(licenses)
+  const licenseRows = (await db
+    .select({
+      status: licenses.status,
+      expire_date: licenses.expire_date,
+      calculated_fee: licenses.calculated_fee,
+    })
+    .from(licenses)) as MetricLicenseRow[]
 
   let sampleCount = 0
   if (
@@ -70,38 +89,69 @@ export default async function MetricCards() {
   const { licenseRows, sampleCount } = await loadDashboardMetrics()
 
   const now = new Date()
-
-  const activeLicenses = licenseRows.filter((row) => {
-    const expireDate = new Date(row.expire_date)
-    return expireDate >= now
-  })
-
-  const expiredLicenses = licenseRows.filter((row) => {
-    const expireDate = new Date(row.expire_date)
-    return expireDate < now
-  })
+  const isExpired = (row: MetricLicenseRow) => new Date(row.expire_date) < now
 
   const totalLicenses = licenseRows.length
+  const pending = licenseRows.filter(
+    (r) => r.status === "PENDING" || r.status === "REVIEW",
+  ).length
+  // Active = approved and not past expiry.
+  const active = licenseRows.filter(
+    (r) => r.status === "APPROVED" && !isExpired(r),
+  ).length
+  // Expired = approved but past the expiry date.
+  const expired = licenseRows.filter(
+    (r) => r.status === "APPROVED" && isExpired(r),
+  ).length
+  const suspended = licenseRows.filter((r) => r.status === "SUSPENDED").length
+
+  // Revenue = sum of fees for approved licenses.
+  const revenue = licenseRows
+    .filter((r) => r.status === "APPROVED")
+    .reduce((sum, r) => sum + (Number(r.calculated_fee) || 0), 0)
+  const revenueFormatted = new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(revenue)
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       <MetricCard
         value={totalLicenses}
-        label="Total Licenses"
+        label="Applications"
         icon={<FileBadge className="h-6 w-6 text-indigo-600" />}
         iconClassName="bg-indigo-100"
       />
       <MetricCard
-        value={activeLicenses.length}
-        label="Active Licenses"
-        icon={<FileCheck2 className="h-6 w-6 text-cyan-600" />}
-        iconClassName="bg-cyan-100"
+        value={pending}
+        label="Pending Review"
+        icon={<Clock className="h-6 w-6 text-yellow-600" />}
+        iconClassName="bg-yellow-100"
       />
       <MetricCard
-        value={expiredLicenses.length}
+        value={active}
+        label="Active Licenses"
+        icon={<FileCheck2 className="h-6 w-6 text-green-600" />}
+        iconClassName="bg-green-100"
+      />
+      <MetricCard
+        value={expired}
         label="Expired Licenses"
         icon={<ShieldAlert className="h-6 w-6 text-orange-600" />}
         iconClassName="bg-orange-100"
+      />
+      <MetricCard
+        value={suspended}
+        label="Suspended"
+        icon={<PauseCircle className="h-6 w-6 text-red-600" />}
+        iconClassName="bg-red-100"
+      />
+      <MetricCard
+        value={revenueFormatted}
+        label="Revenue Collected"
+        icon={<DollarSign className="h-6 w-6 text-emerald-600" />}
+        iconClassName="bg-emerald-100"
       />
       <MetricCard
         value={sampleCount}

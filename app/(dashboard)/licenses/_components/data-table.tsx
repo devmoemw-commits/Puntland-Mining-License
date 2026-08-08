@@ -79,10 +79,21 @@ export function DataTable<TData, TValue>({ columns, data }: DataTableProps<TData
     { label: "Karkaar", value: "Karkaar" },
     { label: "Raas Casayr", value: "Raas Casayr" },
     { label: "Haylaan", value: "Haylaan" },
-
-
-
   ]
+
+  // District options derived from the loaded rows (location name, falling back to region).
+  const districtOptions = Array.from(
+    new Set(
+      (data as Array<Record<string, unknown>>)
+        .map((r) => {
+          const loc = r.location as { name?: string } | undefined
+          return loc?.name ?? (r.region as string | undefined) ?? ""
+        })
+        .filter((v): v is string => Boolean(v)),
+    ),
+  )
+    .sort((a, b) => a.localeCompare(b))
+    .map((d) => ({ label: d, value: d }))
 
   return (
     <div>
@@ -104,6 +115,8 @@ export function DataTable<TData, TValue>({ columns, data }: DataTableProps<TData
                   { label: "In Review", value: "REVIEW" },
                   { label: "Approved", value: "APPROVED" },
                   { label: "Rejected", value: "REJECTED" },
+                  { label: "Suspended", value: "SUSPENDED" },
+                  { label: "Cancelled", value: "CANCELLED" },
                 ]}
               />
             )}
@@ -117,6 +130,9 @@ export function DataTable<TData, TValue>({ columns, data }: DataTableProps<TData
             />
             {table.getColumn("license_area") && (
               <DataTableFacetedFilter column={table.getColumn("license_area")} title="Area" options={areaOptions} />
+            )}
+            {table.getColumn("district") && districtOptions.length > 0 && (
+              <DataTableFacetedFilter column={table.getColumn("district")} title="District" options={districtOptions} />
             )}
           </div>
 

@@ -11,8 +11,10 @@ import {
 import { actionClient } from "@/lib/safe-action";
 import {
   adminLicenseActionSchema,
+  adminSetLicenseStatusSchema,
   deleteLicenseSchema,
   licensesSchema,
+  setLicenseCoordinatesSchema,
   signWorkflowStepSchema,
   updateLicenseSchema,
   updateLicenseSignatureSchema,
@@ -20,10 +22,12 @@ import {
 } from "@/types/license-schema";
 import { and, desc, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { requireActionPermission, userHasPermission } from "@/lib/permissions-server";
 import { Permissions } from "@/lib/permissions";
 import { dataDeletionBlockedResult } from "@/lib/data-retention";
 import { parseWorkflowDefinition } from "@/lib/approval-workflow";
+import { logActivity } from "@/lib/activity-log";
 
 const LICENSE_MODULE = "LICENSE";
 
@@ -141,8 +145,9 @@ export const RegisterLicense = actionClient.schema(licensesSchema).action(
       return `${prefix}-${year}${month}-${randomPart}`;
     }
 
+    const refId = generateLicenseRefId();
     const [createdLicense] = await db.insert(licenses).values({
-      license_ref_id: generateLicenseRefId(),
+      license_ref_id: refId,
 
       company_name: company_name,
       business_type: business_type,
@@ -187,6 +192,14 @@ export const RegisterLicense = actionClient.schema(licensesSchema).action(
           console.error("Failed to initialize workflow instance for license:", error);
         }
       }
+
+      await logActivity({
+        action: "license.create",
+        entityType: "license",
+        entityId: createdLicense.id,
+        entityLabel: refId,
+        summary: `Registered license ${refId} for ${company_name}`,
+      });
     }
 
     return { success: "License registered successfully" };
@@ -222,6 +235,13 @@ export const UpdateLicense = actionClient
           updated_at: new Date(), // Keep as Date object since that's what the database expects
         })
         .where(eq(licenses.id, id));
+
+      await logActivity({
+        action: "license.update",
+        entityType: "license",
+        entityId: id,
+        summary: `Updated license details (${Object.keys(filteredUpdateData).join(", ")})`,
+      });
 
       return { success: "License updated successfully" };
     } catch (error) {
@@ -259,27 +279,85 @@ async function requireLicenseAdmin(): Promise<
   return { ok: true, userId: session.user.id };
 }
 
-// Admin-only: permanently delete a license (workflow instance/transitions cascade).
+// Deletion is permanently disabled to preserve production data and audit history.
+// Use AdminSetLicenseStatus (Cancel) instead — the record is retained, only the status changes.
 export const AdminDeleteLicense = actionClient
   .schema(adminLicenseActionSchema)
-  .action(async ({ parsedInput: { id } }) => {
+  .action(async () => {
     const guard = await requireLicenseAdmin();
     if ("error" in guard) return { error: guard.error };
+    return dataDeletionBlockedResult();
+  });
+
+// Admin-only status override: suspend an approved license, cancel it, or reinstate a suspended one.
+// Never deletes data — only changes `status` and records the reason in `review_comment`.
+export const AdminSetLicenseStatus = actionClient
+  .schema(adminSetLicenseStatusSchema)
+  .action(async ({ parsedInput: { id, status, comment } }) => {
+    // Admin capability: SUPER_ADMIN or ADMIN both hold LICENSE_MODERATE.
+    const denied = await requireActionPermission(Permissions.LICENSE_MODERATE);
+    if (denied) return { error: denied };
+
+    const session = await auth();
+    if (!session?.user?.id) return { error: "Unauthorized" };
 
     try {
-      const [existing] = await db
-        .select({ id: licenses.id })
+      const [current] = await db
+        .select({ status: licenses.status, ref: licenses.license_ref_id })
         .from(licenses)
         .where(eq(licenses.id, id))
         .limit(1);
-      if (!existing) return { error: "License not found" };
+      if (!current) return { error: "License not found" };
 
-      await db.delete(licenses).where(eq(licenses.id, id));
-      return { success: "License deleted successfully" };
+      // Allowed administrative transitions.
+      const allowed: Record<string, readonly string[]> = {
+        // Suspend an approved license; cancel any active license.
+        PENDING: ["CANCELLED"],
+        REVIEW: ["CANCELLED"],
+        APPROVED: ["SUSPENDED", "CANCELLED"],
+        REJECTED: ["CANCELLED"],
+        // Reinstate a suspended license, or cancel it outright.
+        SUSPENDED: ["APPROVED", "CANCELLED"],
+        // Cancelled is terminal.
+        CANCELLED: [],
+      };
+
+      if (!allowed[current.status]?.includes(status)) {
+        return {
+          error: `Cannot change status from ${current.status} to ${status}.`,
+        };
+      }
+
+      await db
+        .update(licenses)
+        .set({
+          status,
+          review_comment: comment,
+          updated_at: new Date(),
+        })
+        .where(eq(licenses.id, id));
+
+      const verb =
+        status === "SUSPENDED"
+          ? "suspended"
+          : status === "CANCELLED"
+            ? "cancelled"
+            : "reinstated";
+
+      await logActivity({
+        action: "license.status_change",
+        entityType: "license",
+        entityId: id,
+        entityLabel: current.ref,
+        summary: `License ${current.ref} ${verb} (admin)`,
+        metadata: { from: current.status, to: status, reason: comment },
+      });
+
+      return { success: `License ${verb} successfully` };
     } catch (error) {
-      console.error("Error deleting license:", error);
+      console.error("Error setting license status:", error);
       return {
-        error: `Failed to delete license: ${error instanceof Error ? error.message : String(error)}`,
+        error: `Failed to update license status: ${error instanceof Error ? error.message : String(error)}`,
       };
     }
   });
@@ -293,7 +371,7 @@ export const AdminRevokeLicense = actionClient
 
     try {
       const [existing] = await db
-        .select({ id: licenses.id })
+        .select({ id: licenses.id, ref: licenses.license_ref_id })
         .from(licenses)
         .where(eq(licenses.id, id))
         .limit(1);
@@ -308,11 +386,62 @@ export const AdminRevokeLicense = actionClient
         })
         .where(eq(licenses.id, id));
 
+      await logActivity({
+        action: "license.revoke",
+        entityType: "license",
+        entityId: id,
+        entityLabel: existing.ref,
+        summary: `License ${existing.ref} approval signature revoked`,
+      });
+
       return { success: "License revoked successfully" };
     } catch (error) {
       console.error("Error revoking license:", error);
       return {
         error: `Failed to revoke license: ${error instanceof Error ? error.message : String(error)}`,
+      };
+    }
+  });
+
+// Set GPS coordinates for a license (used by the GIS map screen).
+export const SetLicenseCoordinates = actionClient
+  .schema(setLicenseCoordinatesSchema)
+  .action(async ({ parsedInput: { id, latitude, longitude } }) => {
+    const denied = await requireActionPermission(Permissions.LICENSE_REGISTER);
+    if (denied) return { error: denied };
+
+    try {
+      const [existing] = await db
+        .select({ ref: licenses.license_ref_id })
+        .from(licenses)
+        .where(eq(licenses.id, id))
+        .limit(1);
+      if (!existing) return { error: "License not found" };
+
+      await db
+        .update(licenses)
+        .set({
+          latitude: String(latitude),
+          longitude: String(longitude),
+          updated_at: new Date(),
+        })
+        .where(eq(licenses.id, id));
+
+      await logActivity({
+        action: "license.set_coordinates",
+        entityType: "license",
+        entityId: id,
+        entityLabel: existing.ref,
+        summary: `Set GPS coordinates for ${existing.ref}`,
+        metadata: { latitude, longitude },
+      });
+
+      revalidatePath("/map");
+      return { success: "Coordinates saved" };
+    } catch (error) {
+      console.error("Error setting coordinates:", error);
+      return {
+        error: `Failed to save coordinates: ${error instanceof Error ? error.message : String(error)}`,
       };
     }
   });
@@ -349,13 +478,20 @@ export const UpdateLicenseStatus = actionClient
         return { error: "Unauthorized" };
       }
       const [current] = await db
-        .select({ status: licenses.status })
+        .select({ status: licenses.status, ref: licenses.license_ref_id })
         .from(licenses)
         .where(eq(licenses.id, id))
         .limit(1);
 
       if (!current) {
         return { error: "License not found" };
+      }
+
+      // Administrative statuses are managed by AdminSetLicenseStatus, not the workflow.
+      if (current.status === "SUSPENDED" || current.status === "CANCELLED") {
+        return {
+          error: `This license is ${current.status.toLowerCase()} and cannot be progressed through the approval workflow.`,
+        };
       }
 
       const workflowContext = await ensureLicenseWorkflowInstance(id);
@@ -515,6 +651,16 @@ export const UpdateLicenseStatus = actionClient
           : status === "APPROVED"
             ? "approved"
             : "rejected";
+
+      await logActivity({
+        action: "license.status_change",
+        entityType: "license",
+        entityId: id,
+        entityLabel: current.ref,
+        summary: `License ${current.ref} ${statusText}`,
+        metadata: { from: current.status, to: status, comment: comment ?? null },
+      });
+
       return { success: `License ${statusText} successfully` };
     } catch (error) {
       console.error("Error updating license status:", error);

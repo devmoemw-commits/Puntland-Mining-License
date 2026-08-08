@@ -1,7 +1,21 @@
 import * as z from "zod"
 
-// License status enum values matching your database schema
-export const licenseStatusValues = ["PENDING", "REVIEW", "APPROVED", "REJECTED"] as const
+// License status enum values matching your database schema.
+// SUSPENDED / CANCELLED are administrative statuses; EXPIRED is derived from expire_date (not stored).
+export const licenseStatusValues = [
+  "PENDING",
+  "REVIEW",
+  "APPROVED",
+  "REJECTED",
+  "SUSPENDED",
+  "CANCELLED",
+] as const
+
+// Statuses reachable through the normal approval workflow (excludes admin overrides).
+export const workflowStatusValues = ["PENDING", "REVIEW", "APPROVED", "REJECTED"] as const
+
+// Target statuses for admin-only overrides (suspend / cancel / reinstate).
+export const adminStatusValues = ["SUSPENDED", "CANCELLED", "APPROVED"] as const
 
 // Main license schema for registration
 export const licensesSchema = z.object({
@@ -123,7 +137,7 @@ export const updateLicenseSchema = z.object({
 // Schema specifically for updating license approval status
 export const updateLicenseStatusSchema = z.object({
   id: z.string().uuid("Invalid license ID"),
-  status: z.enum(licenseStatusValues, {
+  status: z.enum(workflowStatusValues, {
     errorMap: () => ({ message: "Status must be PENDING, REVIEW, APPROVED, or REJECTED" }),
   }),
   comment: z
@@ -144,10 +158,23 @@ export const updateLicenseStatusSchema = z.object({
 // Schema for bulk status updates
 export const bulkUpdateLicenseStatusSchema = z.object({
   ids: z.array(z.string().uuid("Invalid license ID")).min(1, "At least one license must be selected"),
-  status: z.enum(licenseStatusValues, {
+  status: z.enum(workflowStatusValues, {
     errorMap: () => ({ message: "Status must be PENDING, REVIEW, APPROVED, or REJECTED" }),
   }),
 })
+
+// Admin-only status override: suspend, cancel, or reinstate a license (reason required).
+export const adminSetLicenseStatusSchema = z.object({
+  id: z.string().uuid("Invalid license ID"),
+  status: z.enum(adminStatusValues),
+  comment: z
+    .string()
+    .trim()
+    .min(1, "A reason is required")
+    .max(1000, "Comment cannot exceed 1000 characters"),
+})
+
+export type AdminSetLicenseStatusInput = z.infer<typeof adminSetLicenseStatusSchema>
 
 // Schema for filtering licenses by status
 export const licenseFilterSchema = z.object({
@@ -201,6 +228,10 @@ export const getStatusDisplayText = (status: LicenseStatus): string => {
       return "Approved"
     case "REJECTED":
       return "Rejected"
+    case "SUSPENDED":
+      return "Suspended"
+    case "CANCELLED":
+      return "Cancelled"
     default:
       return status
   }
@@ -217,6 +248,10 @@ export const getStatusColorClass = (status: LicenseStatus): string => {
       return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
     case "REJECTED":
       return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300"
+    case "SUSPENDED":
+      return "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300"
+    case "CANCELLED":
+      return "bg-gray-200 text-gray-800 dark:bg-gray-800 dark:text-gray-300"
     default:
       return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300"
   }
@@ -224,6 +259,42 @@ export const getStatusColorClass = (status: LicenseStatus): string => {
 
 
 
+
+// Set GPS coordinates on a license (Phase 8)
+export const setLicenseCoordinatesSchema = z.object({
+  id: z.string().uuid("Invalid license ID"),
+  latitude: z
+    .number({ invalid_type_error: "Latitude must be a number" })
+    .min(-90)
+    .max(90),
+  longitude: z
+    .number({ invalid_type_error: "Longitude must be a number" })
+    .min(-180)
+    .max(180),
+})
+export type SetLicenseCoordinatesInput = z.infer<typeof setLicenseCoordinatesSchema>
+
+// Inspection report creation (Phase 5)
+export const createInspectionReportSchema = z.object({
+  licenseId: z.string().uuid("Invalid license ID"),
+  inspectionDate: z.string().optional(),
+  inspectorName: z.string().min(1, "Inspector name is required").max(255),
+  gpsVerified: z.boolean().optional(),
+  recommendation: z.enum(["APPROVE", "REJECT", "MORE_INFO"]).optional(),
+  notes: z.string().max(4000).optional(),
+  photos: z.string().optional(),
+})
+export type CreateInspectionReportInput = z.infer<typeof createInspectionReportSchema>
+
+// License renewal creation (Phase 5) — extends expire_date, records history
+export const createRenewalSchema = z.object({
+  licenseId: z.string().uuid("Invalid license ID"),
+  newExpireDate: z.string().min(1, "New expiry date is required"),
+  fee: z.string().optional(),
+  receiptNumber: z.string().max(255).optional(),
+  notes: z.string().max(4000).optional(),
+})
+export type CreateRenewalInput = z.infer<typeof createRenewalSchema>
 
 // Add this to your existing license-schema.ts file
 export const updateLicenseSignatureSchema = z.object({

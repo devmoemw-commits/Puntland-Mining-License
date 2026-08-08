@@ -30,7 +30,8 @@ export async function middleware(request: NextRequest) {
   }
 
   if (!token.role) {
-    return NextResponse.redirect(new URL("/unauthorized", request.url))
+    // No role on the token → treat as unauthenticated rather than 404 on a missing page.
+    return NextResponse.redirect(new URL("/login", request.url))
   }
 
   const userRole = token.role as string
@@ -58,6 +59,9 @@ export const config = {
     "/settings",
     "/settings/:path*",
     "/licenses/:path*",
+    "/map/:path*",
+    "/activity-logs/:path*",
+    "/exports/:path*",
 
     //api routes
   ],

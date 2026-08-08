@@ -68,6 +68,10 @@ export function DashboardHeader({ session }: { session: Session }) {
     ExpiringNotification[]
   >([]);
   const [notificationCount, setNotificationCount] = useState(0);
+  const [inbox, setInbox] = useState<
+    { id: string; title: string; body: string | null; link: string | null; readAt: string | null }[]
+  >([]);
+  const [inboxUnread, setInboxUnread] = useState(0);
   const { theme, setTheme } = useTheme();
 
   // Handle sign out with proper async handling
@@ -122,6 +126,24 @@ export function DashboardHeader({ session }: { session: Session }) {
     fetchExpiringLicenses();
     // Refresh every hour
     const interval = setInterval(fetchExpiringLicenses, 3600000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Fetch durable in-app notifications (e.g. emailed expiry alerts recorded in-app).
+  useEffect(() => {
+    const fetchInbox = async () => {
+      try {
+        const res = await fetch("/api/notifications");
+        if (!res.ok) return;
+        const data = await res.json();
+        setInbox(Array.isArray(data.items) ? data.items : []);
+        setInboxUnread(Number(data.unread) || 0);
+      } catch (error) {
+        console.error("Failed to fetch notifications:", error);
+      }
+    };
+    fetchInbox();
+    const interval = setInterval(fetchInbox, 3600000);
     return () => clearInterval(interval);
   }, []);
 
@@ -237,15 +259,47 @@ export function DashboardHeader({ session }: { session: Session }) {
                   className="h-9 w-9 p-0 relative"
                 >
                   <Bell className="h-4 w-4" />
-                  {notificationCount > 0 && (
+                  {notificationCount + inboxUnread > 0 && (
                     <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 text-xs bg-red-500 hover:bg-red-500">
-                      {notificationCount}
+                      {notificationCount + inboxUnread}
                     </Badge>
                   )}
                   <span className="sr-only">Notifications</span>
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-80 p-0" align="end">
+                {inbox.length > 0 && (
+                  <div className="border-b">
+                    <div className="flex items-center justify-between p-4">
+                      <h4 className="font-semibold">Notifications</h4>
+                      <Badge variant="secondary">{inboxUnread}</Badge>
+                    </div>
+                    <div className="max-h-56 overflow-auto p-2">
+                      {inbox.map((n) => {
+                        const item = (
+                          <div
+                            className={cn(
+                              "rounded-lg p-3 transition-colors hover:bg-muted/50",
+                              !n.readAt && "bg-muted/30",
+                            )}
+                          >
+                            <p className="text-sm font-medium">{n.title}</p>
+                            {n.body ? (
+                              <p className="text-xs text-muted-foreground">{n.body}</p>
+                            ) : null}
+                          </div>
+                        );
+                        return n.link ? (
+                          <Link key={n.id} href={n.link}>
+                            {item}
+                          </Link>
+                        ) : (
+                          <div key={n.id}>{item}</div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
                 <div className="flex items-center justify-between p-4 border-b">
                   <h4 className="font-semibold">
                     License Expiry Notifications

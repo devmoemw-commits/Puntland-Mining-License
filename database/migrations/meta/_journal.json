@@ -127,6 +127,55 @@
       "when": 1760000010000,
       "tag": "0017_seed_letter_config",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1760000011000,
+      "tag": "0018_admin_role",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1760000012000,
+      "tag": "0019_license_status_suspend_cancel",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1760000013000,
+      "tag": "0020_activity_logs",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1760000014000,
+      "tag": "0021_inspection_reports_and_renewals",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1760000015000,
+      "tag": "0022_mineral_exports",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1760000016000,
+      "tag": "0023_license_coordinates",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1760000017000,
+      "tag": "0024_notifications",
+      "breakpoints": true
     }
   ]
 }

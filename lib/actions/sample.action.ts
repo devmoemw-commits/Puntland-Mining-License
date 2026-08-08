@@ -25,6 +25,7 @@ import { requireActionPermission } from "@/lib/permissions-server";
 import { Permissions } from "@/lib/permissions";
 import { dataDeletionBlockedResult } from "@/lib/data-retention";
 import { parseWorkflowDefinition } from "@/lib/approval-workflow";
+import { logActivity } from "@/lib/activity-log";
 
 const SAMPLE_MODULE = "SAMPLE";
 
@@ -154,6 +155,14 @@ export const RegisterSampleAnalysis = actionClient
             console.error("Failed to initialize workflow instance for sample:", error);
           }
         }
+
+        await logActivity({
+          action: "sample.create",
+          entityType: "sample",
+          entityId: createdSample.id,
+          entityLabel: ref_id,
+          summary: `Registered sample ${ref_id} for ${name}`,
+        });
       }
 
       return { success: "Sample registered successfully" };
@@ -185,6 +194,13 @@ export const UpdateSampleAnalysis = actionClient
           updated_at: new Date(), // Update the timestamp
         })
         .where(eq(sampleAnalysis.id, id));
+
+      await logActivity({
+        action: "sample.update",
+        entityType: "sample",
+        entityId: id,
+        summary: `Updated sample details for ${name}`,
+      });
 
       return { success: "Sample updated successfully" };
     } catch (error) {
@@ -272,13 +288,20 @@ export const UpdateSampleStatus = actionClient
       }
 
       const [current] = await db
-        .select({ status: sampleAnalysis.status })
+        .select({ status: sampleAnalysis.status, ref: sampleAnalysis.ref_id })
         .from(sampleAnalysis)
         .where(eq(sampleAnalysis.id, id))
         .limit(1);
 
       if (!current) {
         return { error: "Sample not found" };
+      }
+
+      // Samples never enter administrative statuses, but the shared enum includes them.
+      if (current.status === "SUSPENDED" || current.status === "CANCELLED") {
+        return {
+          error: `This sample is ${current.status.toLowerCase()} and cannot be changed.`,
+        };
       }
 
       const workflowContext = await ensureSampleWorkflowInstance(id);
@@ -426,6 +449,16 @@ export const UpdateSampleStatus = actionClient
             : status === "APPROVED"
               ? "approved"
               : "rejected";
+
+      await logActivity({
+        action: "sample.status_change",
+        entityType: "sample",
+        entityId: id,
+        entityLabel: current.ref,
+        summary: `Sample ${current.ref} ${statusText}`,
+        metadata: { from: current.status, to: status, comment: comment ?? null },
+      });
+
       return { success: `Sample ${statusText} successfully` };
     } catch (error) {
       console.error("Error updating sample status:", error);

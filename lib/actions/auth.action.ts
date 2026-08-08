@@ -10,7 +10,7 @@ import { AuthCredentials } from "@/types";
 import { deleteUserSchema } from "@/types/user-schema";
 import { actionClient } from "../safe-action";
 import { requireActionPermission } from "@/lib/permissions-server";
-import { Permissions } from "@/lib/permissions";
+import { Permissions, PRIVILEGED_ROLES } from "@/lib/permissions";
 import { dataDeletionBlockedResult } from "@/lib/data-retention";
 import {
   usersIdEmail,
@@ -94,6 +94,17 @@ export const signUp = async (params: AuthCredentials) => {
     .limit(1);
   if (!roleRow) {
     return { success: false, error: "Invalid role. Create the role first or pick a valid one." };
+  }
+
+  // Privilege-escalation guard: only a Super Admin may grant SUPER_ADMIN / ADMIN.
+  if ((PRIVILEGED_ROLES as readonly string[]).includes(role)) {
+    const actor = await auth();
+    if (actor?.user?.role !== "SUPER_ADMIN") {
+      return {
+        success: false,
+        error: "Only a Super Admin can assign the SUPER_ADMIN or ADMIN role.",
+      };
+    }
   }
 
   for (const c of directPermissionCodes) {
@@ -219,6 +230,16 @@ export const updateUser = async (
         .limit(1)
       if (found.length === 0) {
         return { success: false, error: "Invalid role specified" }
+      }
+      // Privilege-escalation guard: only a Super Admin may grant SUPER_ADMIN / ADMIN.
+      if ((PRIVILEGED_ROLES as readonly string[]).includes(found[0].code)) {
+        const actor = await auth();
+        if (actor?.user?.role !== "SUPER_ADMIN") {
+          return {
+            success: false,
+            error: "Only a Super Admin can assign the SUPER_ADMIN or ADMIN role.",
+          };
+        }
       }
       updateData.role = found[0].code
     }

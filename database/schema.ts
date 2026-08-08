@@ -15,11 +15,15 @@ import {
 } from "drizzle-orm/pg-core";
 
 // 👉 License Status Enum
+// SUSPENDED / CANCELLED are administrative statuses (data preserved, never deleted).
+// EXPIRED is intentionally NOT stored here — it is derived from expire_date at read time.
 export const licenseStatusEnum = pgEnum("license_status", [
   "PENDING",
   "REVIEW",
   "APPROVED",
   "REJECTED",
+  "SUSPENDED",
+  "CANCELLED",
 ]);
 
 /** Application roles (managed in DB; referenced by `users.role` and `role_permissions.role`). */
@@ -250,6 +254,10 @@ export const licenses = pgTable("licenses", {
   calculated_fee: decimal("calculated_fee", { precision: 10, scale: 2 }),
   license_area: text("license_area").array(),
 
+  // 👉 GIS coordinates (nullable — set from the GIS map screen)
+  latitude: decimal("latitude", { precision: 10, scale: 6 }),
+  longitude: decimal("longitude", { precision: 10, scale: 6 }),
+
   // 👉 STEP 5 - Signature true/false
   signature: boolean("signature").default(false),
   /** User who applied the official signature (links to users.signature_image_url). */
@@ -324,6 +332,144 @@ export const sampleWorkflowTransitions = pgTable("sample_workflow_transitions", 
   /** Snapshot of signer signature URL at action time to preserve immutable workflow history. */
   actedBySignatureUrl: text("acted_by_signature_url"),
   comment: text("comment"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+// 👉 Activity Log (append-only audit trail across modules)
+export const activityLogs = pgTable("activity_logs", {
+  id: uuid("id").primaryKey().defaultRandom().notNull(),
+  /** Acting user (nullable so logs survive user removal); name/role are snapshotted below. */
+  actorUserId: uuid("actor_user_id").references(() => users.id, {
+    onDelete: "set null",
+  }),
+  actorName: text("actor_name"),
+  actorRole: varchar("actor_role", { length: 64 }),
+  /** Machine action code, e.g. "license.status_change", "user.create". */
+  action: varchar("action", { length: 128 }).notNull(),
+  /** Entity kind: "license" | "sample" | "user" | "export" | "role" | etc. */
+  entityType: varchar("entity_type", { length: 64 }).notNull(),
+  /** Entity id (text to accept uuid or code ids). */
+  entityId: text("entity_id"),
+  /** Human reference for the entity, e.g. a license_ref_id. */
+  entityLabel: text("entity_label"),
+  /** Human-readable one-line summary. */
+  summary: text("summary"),
+  /** Optional JSON blob of extra context. */
+  metadata: text("metadata"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+// 👉 Inspection Reports (per-license site inspections)
+export const inspectionReports = pgTable("inspection_reports", {
+  id: uuid("id").primaryKey().defaultRandom().notNull(),
+  licenseId: uuid("license_id")
+    .notNull()
+    .references(() => licenses.id, { onDelete: "cascade" }),
+  inspectionDate: timestamp("inspection_date", { withTimezone: true }),
+  inspectorName: varchar("inspector_name", { length: 255 }),
+  gpsVerified: boolean("gps_verified").default(false).notNull(),
+  /** APPROVE | REJECT | MORE_INFO */
+  recommendation: varchar("recommendation", { length: 64 }),
+  notes: text("notes"),
+  /** Comma/JSON list of ImageKit photo URLs. */
+  photos: text("photos"),
+  createdByUserId: uuid("created_by_user_id").references(() => users.id, {
+    onDelete: "set null",
+  }),
+  createdByName: text("created_by_name"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+// 👉 License Renewal History
+export const licenseRenewals = pgTable("license_renewals", {
+  id: uuid("id").primaryKey().defaultRandom().notNull(),
+  licenseId: uuid("license_id")
+    .notNull()
+    .references(() => licenses.id, { onDelete: "cascade" }),
+  previousExpireDate: timestamp("previous_expire_date", { withTimezone: true }),
+  newExpireDate: timestamp("new_expire_date", { withTimezone: true }).notNull(),
+  fee: decimal("fee", { precision: 10, scale: 2 }),
+  receiptNumber: varchar("receipt_number", { length: 255 }),
+  notes: text("notes"),
+  createdByUserId: uuid("created_by_user_id").references(() => users.id, {
+    onDelete: "set null",
+  }),
+  createdByName: text("created_by_name"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+// 👉 Mineral Export Registration (FOOMKA DIIWAANGELINTA MACDANTA LA DHOOFINAYO)
+export const mineralExports = pgTable("mineral_exports", {
+  id: uuid("id").primaryKey().defaultRandom().notNull(),
+  ref_id: varchar("ref_id", { length: 255 }).notNull().unique(),
+
+  // 1. Exporting company information
+  company_name: varchar("company_name", { length: 255 }).notNull(),
+  city_region: varchar("city_region", { length: 255 }),
+  company_telephone: varchar("company_telephone", { length: 255 }),
+  mineral_licence_no: varchar("mineral_licence_no", { length: 255 }),
+
+  // 2. Authorised cargo representative
+  rep_full_name: varchar("rep_full_name", { length: 255 }),
+  rep_position: varchar("rep_position", { length: 255 }),
+  rep_telephone: varchar("rep_telephone", { length: 255 }),
+  /** ID Card | Passport | Driving Licence | Other */
+  rep_id_type: varchar("rep_id_type", { length: 64 }),
+  rep_id_number: varchar("rep_id_number", { length: 255 }),
+
+  // 3. Mineral shipment details
+  mineral_type: varchar("mineral_type", { length: 255 }),
+  /** Raw | Refined | Crushed | Packaged | Other */
+  mineral_form: varchar("mineral_form", { length: 64 }),
+  quantity: decimal("quantity", { precision: 14, scale: 3 }),
+  unit: varchar("unit", { length: 64 }),
+  extraction_site: varchar("extraction_site", { length: 255 }),
+  district_region: varchar("district_region", { length: 255 }),
+
+  // 4. Destination and export route
+  destination_country: varchar("destination_country", { length: 255 }),
+  /** Seaport | Airport */
+  point_of_export_type: varchar("point_of_export_type", { length: 64 }),
+  point_of_export_name: varchar("point_of_export_name", { length: 255 }),
+  /** Vessel | Aircraft | Other */
+  transport_mode: varchar("transport_mode", { length: 64 }),
+  vessel_or_airline_name: varchar("vessel_or_airline_name", { length: 255 }),
+  export_date: timestamp("export_date", { withTimezone: true }),
+
+  // Declaration & approval
+  applicant_name: varchar("applicant_name", { length: 255 }),
+  approver_title: varchar("approver_title", { length: 255 }),
+  approver_name: varchar("approver_name", { length: 255 }),
+
+  status: licenseStatusEnum("status").default("PENDING").notNull(),
+  signature: boolean("signature").default(false),
+  review_comment: text("review_comment"),
+
+  created_by_user_id: uuid("created_by_user_id").references(() => users.id, {
+    onDelete: "set null",
+  }),
+  created_by_name: text("created_by_name"),
+  created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+// 👉 Notifications (per-user, durable; complements the live header bell)
+export const notifications = pgTable("notifications", {
+  id: uuid("id").primaryKey().defaultRandom().notNull(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  /** e.g. "license.expiring", "license.status_change" */
+  type: varchar("type", { length: 64 }).notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  body: text("body"),
+  /** Optional in-app link, e.g. /licenses/<id> */
+  link: text("link"),
+  entityType: varchar("entity_type", { length: 64 }),
+  entityId: text("entity_id"),
+  /** Dedupe key so the same alert isn't recreated repeatedly. */
+  dedupeKey: varchar("dedupe_key", { length: 255 }),
+  readAt: timestamp("read_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 

@@ -12,8 +12,10 @@ import {
 } from "@/database/schema";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import type { License, Location } from "@/types";
-import LicenseDetails from "@/components/license-details";
+import { LicenseDetailTabs } from "./_components/license-detail-tabs";
 import { getCertificateAssets } from "@/lib/data/get-system-config";
+import { listInspectionReports, listRenewals } from "@/lib/data/license-extras";
+import { listActivityForEntity } from "@/lib/data/activity-logs";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -361,10 +363,14 @@ const Page = async ({ params }: Props) => {
     viewerHasSignature = !!viewer?.url;
   }
 
-  const [certificateAssets, workflow] = await Promise.all([
-    getCertificateAssets(),
-    getLicenseWorkflowByLicenseId(id, license.status ?? "PENDING"),
-  ]);
+  const [certificateAssets, workflow, inspections, renewals, activity] =
+    await Promise.all([
+      getCertificateAssets(),
+      getLicenseWorkflowByLicenseId(id, license.status ?? "PENDING"),
+      listInspectionReports(id),
+      listRenewals(id),
+      listActivityForEntity("license", id),
+    ]);
 
   // The certificate signature always comes from a real user's profile signature:
   // an assigned signer's workflow signature step wins; otherwise whoever signed
@@ -385,12 +391,15 @@ const Page = async ({ params }: Props) => {
   }
 
   return (
-    <LicenseDetails
+    <LicenseDetailTabs
       license={license}
       certificateAssets={certificateAssets}
       signerSignatureUrl={signerSignatureUrl}
       workflow={workflow}
       viewerHasSignature={viewerHasSignature}
+      inspections={inspections}
+      renewals={renewals}
+      activity={activity}
     />
   );
 };

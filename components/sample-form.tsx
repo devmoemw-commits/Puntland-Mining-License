@@ -5,7 +5,7 @@ import Image from "next/image"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { RegisterSampleAnalysis } from "@/lib/actions/sample.action"
+import { RegisterSampleAnalysis, UpdateSampleAnalysis } from "@/lib/actions/sample.action"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -35,25 +35,44 @@ const formSchema = z.object({
 
 type FormData = z.infer<typeof formSchema>
 
-export default function SampleForm() {
+export interface SampleFormInitialData {
+  id: string
+  ref_id: string
+  name: string
+  nationality: string
+  passport_no: string
+  amount: string
+  unit: string
+  mineral_type: string
+}
+
+export default function SampleForm({
+  initialData,
+}: {
+  initialData?: SampleFormInitialData
+}) {
   const router = useRouter()
-  const [refNumber, setRefNumber] = useState("")
+  const isEdit = !!initialData
+  const [refNumber, setRefNumber] = useState(initialData?.ref_id ?? "")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const signatory = useSampleSignatory()
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: "",
-      nationality: "",
-      passportNo: "",
-      amount: "",
-      unit: "kilogram",
-      mineralType: "",
+      name: initialData?.name ?? "",
+      nationality: initialData?.nationality ?? "",
+      passportNo: initialData?.passport_no ?? "",
+      amount: initialData?.amount ?? "",
+      unit:
+        (initialData?.unit as FormData["unit"]) ?? "kilogram",
+      mineralType: initialData?.mineral_type ?? "",
     },
   })
 
   useEffect(() => {
+    // In edit mode the ref number is fixed (the record already has one).
+    if (isEdit) return
     async function fetchRefId() {
       try {
         const res = await fetch("/api/ref-id")
@@ -65,31 +84,51 @@ export default function SampleForm() {
       }
     }
     fetchRefId()
-  }, [])
+  }, [isEdit])
 
   const onSubmit = async (values: FormData) => {
     setIsSubmitting(true)
 
     try {
-      const result = await RegisterSampleAnalysis({
-        ref_id: refNumber,
-        name: values.name,
-        passport_no: values.passportNo,
-        amount: values.amount,
-        unit: values.unit,
-        mineral_type: values.mineralType,
-        nationality: values.nationality,
-      })
+      if (isEdit && initialData) {
+        const result = await UpdateSampleAnalysis({
+          id: initialData.id,
+          name: values.name,
+          passport_no: values.passportNo,
+          amount: values.amount,
+          unit: values.unit,
+          mineral_type: values.mineralType,
+          nationality: values.nationality,
+        })
 
-      if (result) {
-        toast.success("Sample registered successfully.")
-        router.push("/sample-analysis")
+        if (result?.data?.error) {
+          toast.error(String(result.data.error))
+        } else {
+          toast.success("Sample updated successfully.")
+          router.push(`/sample-analysis/${initialData.id}`)
+          router.refresh()
+        }
       } else {
-        toast.error("Something went wrong.")
+        const result = await RegisterSampleAnalysis({
+          ref_id: refNumber,
+          name: values.name,
+          passport_no: values.passportNo,
+          amount: values.amount,
+          unit: values.unit,
+          mineral_type: values.mineralType,
+          nationality: values.nationality,
+        })
+
+        if (result) {
+          toast.success("Sample registered successfully.")
+          router.push("/sample-analysis")
+        } else {
+          toast.error("Something went wrong.")
+        }
       }
     } catch (error) {
       console.error("Submission error:", error)
-      toast.error("Failed to register sample.")
+      toast.error(isEdit ? "Failed to update sample." : "Failed to register sample.")
     } finally {
       setIsSubmitting(false)
     }
@@ -167,7 +206,7 @@ export default function SampleForm() {
           {/* Reference and Date */}
           <div className="border border-black mt-2">
             <div className="flex justify-between px-4 py-1">
-              <div>REF: MOEMW/DG/{refNumber ?? "Loading..."}</div>
+              <div>REF: {isEdit ? refNumber : `MOEMW/DG/${refNumber || "Loading..."}`}</div>
               <div>{formattedDate}</div>
             </div>
           </div>
@@ -374,7 +413,11 @@ export default function SampleForm() {
               disabled={isSubmitting}
               className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 transition-colors"
             >
-              {isSubmitting ? "Saving..." : "Save Sample Analysis"}
+              {isSubmitting
+                ? "Saving..."
+                : isEdit
+                  ? "Update Sample Analysis"
+                  : "Save Sample Analysis"}
             </Button>
           </div>
         </form>

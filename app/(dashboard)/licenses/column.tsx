@@ -1,10 +1,29 @@
 "use client"
 
-import type { ColumnDef } from "@tanstack/react-table"
+import type { Column, ColumnDef } from "@tanstack/react-table"
+import { ArrowUpDown } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { ValidityStatusBadge } from "./_components/validity-status-badge"
 import { LicenseStatusBadge } from "./_components/license-status-badge"
 import { LicenseActionsCell } from "./_components/license-actions-cell"
+import type { LicenseStatus } from "@/types/license-schema"
+
+// Clickable header that toggles column sorting (asc → desc → none).
+function sortableHeader(label: string) {
+  const Header = ({ column }: { column: Column<License, unknown> }) => (
+    <Button
+      variant="ghost"
+      className="-ml-3 h-8 data-[state=open]:bg-accent"
+      onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+    >
+      {label}
+      <ArrowUpDown className="ml-2 h-4 w-4" />
+    </Button>
+  )
+  Header.displayName = `SortableHeader(${label})`
+  return Header
+}
 
 // Define the License type based on your API response
 export type License = {
@@ -30,7 +49,7 @@ export type License = {
   created_at: string
   updated_at: string
   expire_date: string
-  status: "PENDING" | "REVIEW" | "APPROVED" | "REJECTED" // Make status required and add it as an accessor
+  status: LicenseStatus // Make status required and add it as an accessor
   review_comment?: string | null
   location?: {
     id: string
@@ -62,12 +81,12 @@ export const columns: ColumnDef<License>[] = [
   },
   {
     accessorKey: "license_ref_id",
-    header: "License ID",
+    header: sortableHeader("License ID"),
     cell: ({ row }) => <div>{row.getValue("license_ref_id")}</div>,
   },
   {
     accessorKey: "company_name",
-    header: "Company",
+    header: sortableHeader("Company"),
     cell: ({ row }) => <div>{row.getValue("company_name")}</div>,
   },
   {
@@ -76,8 +95,19 @@ export const columns: ColumnDef<License>[] = [
     cell: ({ row }) => <div>{row.getValue("license_area")}</div>,
   },
   {
+    id: "district",
+    header: sortableHeader("District"),
+    accessorFn: (row) => row.location?.name ?? row.region ?? "",
+    cell: ({ row }) => <div>{row.getValue("district") || "—"}</div>,
+    filterFn: (row, columnId, filterValue) => {
+      const value = row.getValue(columnId)
+      return (filterValue as string[]).includes(value as string)
+    },
+    enableColumnFilter: true,
+  },
+  {
     accessorKey: "license_category",
-    header: "Category",
+    header: sortableHeader("Category"),
     cell: ({ row }) => <div>{row.getValue("license_category")}</div>,
   },
   {
@@ -86,7 +116,7 @@ export const columns: ColumnDef<License>[] = [
     header: "Approval Status",
 
     cell: ({ row }) => {
-      const status = row.getValue("status") as "PENDING" | "REVIEW" | "APPROVED" | "REJECTED"
+      const status = row.getValue("status") as LicenseStatus
       return <LicenseStatusBadge status={status} />
     },
     filterFn: "arrIncludesSome",

@@ -6,11 +6,18 @@
 
 export const USER_ROLES = [
   "SUPER_ADMIN",
+  "ADMIN",
   "MINISTER",
   "GENERAL_DIRECTOR",
   "DIRECTOR",
   "OFFICER",
 ] as const;
+
+/**
+ * Roles that may only be assigned by a SUPER_ADMIN (privilege-escalation guard).
+ * Enforced in user create/update server actions.
+ */
+export const PRIVILEGED_ROLES: readonly UserRole[] = ["SUPER_ADMIN", "ADMIN"];
 
 export type UserRole = (typeof USER_ROLES)[number];
 
@@ -39,6 +46,10 @@ export const Permissions = {
   APPROVAL_WORKFLOW_CREATE: "approval_workflow.create",
   APPROVAL_WORKFLOW_EDIT: "approval_workflow.edit",
   APPROVAL_WORKFLOW_DELETE: "approval_workflow.delete",
+  /** View the activity log / audit trail. */
+  ACTIVITY_LOG_VIEW: "activity_log.view",
+  /** Access the Mineral Export module (restricted to authorized users). */
+  EXPORT_ACCESS: "export.access",
   /** Read-only / viewer surfaces (dashboards, lists) — pair with fine-grained perms as needed. */
   VIEWER_ACCESS: "viewer.access",
   /** Operational actions (submit, process work) — pair with module perms (e.g. license.register). */
@@ -66,6 +77,8 @@ export const PERMISSION_DESCRIPTIONS: Record<Permission, string> = {
   [Permissions.APPROVAL_WORKFLOW_CREATE]: "Create approval workflows",
   [Permissions.APPROVAL_WORKFLOW_EDIT]: "Edit approval workflows",
   [Permissions.APPROVAL_WORKFLOW_DELETE]: "Delete approval workflows",
+  [Permissions.ACTIVITY_LOG_VIEW]: "View the activity log / audit trail",
+  [Permissions.EXPORT_ACCESS]: "Access the Mineral Export module",
   [Permissions.VIEWER_ACCESS]: "Viewer access (read dashboards and shared read-only views)",
   [Permissions.ACTIONS_USE]: "Use operational actions (submit and process work in assigned modules)",
 };
@@ -75,6 +88,7 @@ const ALL_PERMISSIONS: Permission[] = Object.values(Permissions);
 /** Display names for the Postgres `role` enum (users module UI). */
 export const ROLE_LABELS: Record<UserRole, string> = {
   SUPER_ADMIN: "Super Admin",
+  ADMIN: "Admin",
   MINISTER: "Minister",
   GENERAL_DIRECTOR: "General Director",
   DIRECTOR: "Director",
@@ -88,6 +102,27 @@ export const ROLE_LABELS: Record<UserRole, string> = {
 export const DEFAULT_ROLE_PERMISSIONS: Record<UserRole, readonly Permission[]> =
   {
     SUPER_ADMIN: ALL_PERMISSIONS,
+    // Admin: broad administrative access, one tier below Super Admin.
+    // Deliberately excludes APPROVAL_WORKFLOW_DELETE so SUPER_ADMIN stays strictly greater.
+    ADMIN: [
+      Permissions.VIEWER_ACCESS,
+      Permissions.ACTIONS_USE,
+      Permissions.USERS_MANAGE,
+      Permissions.REPORTS_VIEW,
+      Permissions.SAMPLE_ANALYSIS_ACCESS,
+      Permissions.SAMPLE_SIGNATURE,
+      Permissions.LICENSE_REGISTER,
+      Permissions.LICENSE_REVIEW,
+      Permissions.LICENSE_APPROVE,
+      Permissions.LICENSE_REJECT,
+      Permissions.LICENSE_MODERATE,
+      Permissions.SYSTEM_SETTINGS,
+      Permissions.APPROVAL_WORKFLOW_VIEW,
+      Permissions.APPROVAL_WORKFLOW_CREATE,
+      Permissions.APPROVAL_WORKFLOW_EDIT,
+      Permissions.ACTIVITY_LOG_VIEW,
+      Permissions.EXPORT_ACCESS,
+    ],
     MINISTER: [
       Permissions.VIEWER_ACCESS,
       Permissions.ACTIONS_USE,
@@ -102,6 +137,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<UserRole, readonly Permission[]> =
       Permissions.APPROVAL_WORKFLOW_CREATE,
       Permissions.APPROVAL_WORKFLOW_EDIT,
       Permissions.APPROVAL_WORKFLOW_DELETE,
+      Permissions.ACTIVITY_LOG_VIEW,
     ],
     GENERAL_DIRECTOR: [
       Permissions.VIEWER_ACCESS,
@@ -119,6 +155,8 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<UserRole, readonly Permission[]> =
       Permissions.APPROVAL_WORKFLOW_CREATE,
       Permissions.APPROVAL_WORKFLOW_EDIT,
       Permissions.APPROVAL_WORKFLOW_DELETE,
+      Permissions.ACTIVITY_LOG_VIEW,
+      Permissions.EXPORT_ACCESS,
     ],
     DIRECTOR: [
       Permissions.VIEWER_ACCESS,
@@ -131,6 +169,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<UserRole, readonly Permission[]> =
       Permissions.LICENSE_REJECT,
       Permissions.LICENSE_MODERATE,
       Permissions.APPROVAL_WORKFLOW_VIEW,
+      Permissions.ACTIVITY_LOG_VIEW,
     ],
     OFFICER: [
       Permissions.VIEWER_ACCESS,
@@ -153,10 +192,12 @@ export function getPermissionsForRoleDisplay(role: string | null | undefined) {
  * Paths not listed here only require a signed-in user (enforced by layout / session).
  */
 export const ROUTE_ROLE_RULES: Record<string, readonly UserRole[]> = {
-  "/users": ["SUPER_ADMIN"],
-  "/reports": ["SUPER_ADMIN", "MINISTER", "GENERAL_DIRECTOR", "DIRECTOR"],
-  "/sample-analysis": ["SUPER_ADMIN", "GENERAL_DIRECTOR", "DIRECTOR"],
-  "/settings": ["SUPER_ADMIN", "MINISTER", "GENERAL_DIRECTOR"],
+  "/users": ["SUPER_ADMIN", "ADMIN"],
+  "/reports": ["SUPER_ADMIN", "ADMIN", "MINISTER", "GENERAL_DIRECTOR", "DIRECTOR"],
+  "/sample-analysis": ["SUPER_ADMIN", "ADMIN", "GENERAL_DIRECTOR", "DIRECTOR"],
+  "/settings": ["SUPER_ADMIN", "ADMIN", "MINISTER", "GENERAL_DIRECTOR"],
+  "/activity-logs": ["SUPER_ADMIN", "ADMIN", "MINISTER", "GENERAL_DIRECTOR", "DIRECTOR"],
+  "/exports": ["SUPER_ADMIN", "ADMIN", "GENERAL_DIRECTOR"],
 };
 
 function matchingRouteRule(pathname: string): readonly UserRole[] | null {
@@ -194,6 +235,9 @@ export const ROUTE_PERMISSION_RULES: Record<string, readonly Permission[]> = {
   "/settings": [Permissions.SYSTEM_SETTINGS],
   "/settings/approval-workflows": [Permissions.APPROVAL_WORKFLOW_VIEW],
   "/licenses": [Permissions.LICENSE_REGISTER],
+  "/map": [Permissions.LICENSE_REGISTER],
+  "/activity-logs": [Permissions.ACTIVITY_LOG_VIEW],
+  "/exports": [Permissions.EXPORT_ACCESS],
 };
 
 function matchingPermissionRule(

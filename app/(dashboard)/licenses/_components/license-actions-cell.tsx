@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Ban, Eye, MoreHorizontal, Pencil, Trash2, X } from "lucide-react"
+import { Ban, Eye, MoreHorizontal, PauseCircle, Pencil, PlayCircle, X, XCircle } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,8 +16,8 @@ import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { toast } from "sonner"
 import {
-  AdminDeleteLicense,
   AdminRevokeLicense,
+  AdminSetLicenseStatus,
   UpdateLicenseStatus,
 } from "@/lib/actions/licenses.action"
 import type { License } from "../column"
@@ -35,9 +35,12 @@ export function LicenseActionsCell({ license }: LicenseActionsCellProps) {
   const permissionCodes = session?.user?.permissionCodes ?? []
   const hasPermission = (permission: string) => permissionCodes.includes(permission)
 
-  // Delete/revoke are restricted to SUPER_ADMIN users holding the moderation permission.
+  // Revoke (clears an approval signature) stays restricted to SUPER_ADMIN.
   const isSuperAdmin = (session?.user?.role ?? "").toUpperCase() === "SUPER_ADMIN"
   const canAdminManage = isSuperAdmin && hasPermission(Permissions.LICENSE_MODERATE)
+  // Suspend / Cancel / Reinstate are available to admins holding the moderation permission
+  // (SUPER_ADMIN and ADMIN). Records are never deleted — only the status changes.
+  const canModerate = hasPermission(Permissions.LICENSE_MODERATE)
 
   const handleRevoke = async () => {
     setIsDropdownOpen(false)
@@ -52,21 +55,34 @@ export function LicenseActionsCell({ license }: LicenseActionsCellProps) {
     router.refresh()
   }
 
-  const handleDelete = async () => {
+  const handleAdminStatus = async (
+    target: "SUSPENDED" | "CANCELLED" | "APPROVED",
+  ) => {
     setIsDropdownOpen(false)
-    if (
-      !window.confirm(
-        "Permanently delete this license? This cannot be undone and removes its workflow history.",
-      )
-    )
+    const verb =
+      target === "SUSPENDED"
+        ? "suspend"
+        : target === "CANCELLED"
+          ? "cancel"
+          : "reinstate"
+    const reason = window
+      .prompt(`Reason for ${verb} (required):`)
+      ?.trim()
+    if (!reason) {
+      toast.error("A reason is required")
       return
+    }
 
-    const result = await AdminDeleteLicense({ id: license.id })
+    const result = await AdminSetLicenseStatus({
+      id: license.id,
+      status: target,
+      comment: reason,
+    })
     if (result?.data?.error) {
       toast.error(String(result.data.error))
       return
     }
-    toast.success("License deleted successfully")
+    toast.success(String(result?.data?.success ?? "License updated"))
     router.refresh()
   }
 
@@ -167,25 +183,50 @@ export function LicenseActionsCell({ license }: LicenseActionsCellProps) {
             </>
           )}
 
-          {/* Admin-only destructive actions */}
-          {canAdminManage && (
+          {/* Admin status overrides (no deletion — data is always preserved) */}
+          {canModerate && (
             <>
               <DropdownMenuSeparator />
               {license.status === "APPROVED" && (
                 <DropdownMenuItem
-                  onClick={handleRevoke}
-                  className="text-amber-600 focus:text-amber-600 focus:bg-amber-50 dark:focus:bg-amber-950"
+                  onClick={() => handleAdminStatus("SUSPENDED")}
+                  className="text-orange-600 focus:text-orange-600 focus:bg-orange-50 dark:focus:bg-orange-950"
                 >
-                  <Ban className="mr-2 h-4 w-4" />
-                  Revoke
+                  <PauseCircle className="mr-2 h-4 w-4" />
+                  Suspend
                 </DropdownMenuItem>
               )}
+              {license.status === "SUSPENDED" && (
+                <DropdownMenuItem
+                  onClick={() => handleAdminStatus("APPROVED")}
+                  className="text-green-600 focus:text-green-600 focus:bg-green-50 dark:focus:bg-green-950"
+                >
+                  <PlayCircle className="mr-2 h-4 w-4" />
+                  Reinstate
+                </DropdownMenuItem>
+              )}
+              {license.status !== "CANCELLED" && (
+                <DropdownMenuItem
+                  onClick={() => handleAdminStatus("CANCELLED")}
+                  className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950"
+                >
+                  <XCircle className="mr-2 h-4 w-4" />
+                  Cancel
+                </DropdownMenuItem>
+              )}
+            </>
+          )}
+
+          {/* Revoke an approval signature (Super Admin only) */}
+          {canAdminManage && license.status === "APPROVED" && (
+            <>
+              <DropdownMenuSeparator />
               <DropdownMenuItem
-                onClick={handleDelete}
-                className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950"
+                onClick={handleRevoke}
+                className="text-amber-600 focus:text-amber-600 focus:bg-amber-50 dark:focus:bg-amber-950"
               >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete
+                <Ban className="mr-2 h-4 w-4" />
+                Revoke
               </DropdownMenuItem>
             </>
           )}

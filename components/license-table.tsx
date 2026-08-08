@@ -10,6 +10,7 @@ import config from "@/lib/config/config"
 import Link from "next/link"
 import { formatDate } from "@/lib/utils"
 import { getStatusColorClass, getStatusDisplayText } from "@/types/license-schema"
+import type { LicenseStatus } from "@/types/license-schema"
 
 interface License {
   id: string
@@ -17,7 +18,7 @@ interface License {
   company_name: string
   mobile_number: string
   license_category: string
-  status: "PENDING" | "REVIEW" | "APPROVED" | "REJECTED"
+  status: LicenseStatus
   created_at: string
 }
 
@@ -35,9 +36,11 @@ export default function LicenseTable() {
           cache: "no-cache",
         })
         const data = await res.json()
-        setLicenses(data)
+        // The API returns an array on success, or `{ error }` on failure — guard against both.
+        setLicenses(Array.isArray(data) ? data : [])
       } catch (error) {
         console.error("Failed to fetch licenses", error)
+        setLicenses([])
       } finally {
         setLoading(false)
       }
