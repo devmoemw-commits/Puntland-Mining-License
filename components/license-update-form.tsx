@@ -12,6 +12,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { SearchableSelect } from "@/components/ui/searchable-select"
+import { MultiSelect } from "@/components/ui/multi-select"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { UpdateLicense } from "@/lib/actions/licenses.action"
@@ -115,6 +116,7 @@ type LicenseCategory = {
   name: string
   new_license_fee: string
   renewal_fee: string
+  is_free: boolean
 }
 
 export function LicenseUpdateForm({ license, onSuccess }: LicenseUpdateFormProps) {
@@ -274,10 +276,14 @@ export function LicenseUpdateForm({ license, onSuccess }: LicenseUpdateFormProps
     (type: string, categoryName: string): string => {
       const category = categories.find((c) => c.name === categoryName)
       if (!category) return ""
+      if (category.is_free) return "0"
       return type === "Renewal" ? category.renewal_fee : category.new_license_fee
     },
     [categories],
   )
+
+  const selectedCategoryIsFree =
+    categories.find((c) => c.name === license_category)?.is_free ?? false
 
   useEffect(() => {
     if (license_type && license_category) {
@@ -360,21 +366,30 @@ export function LicenseUpdateForm({ license, onSuccess }: LicenseUpdateFormProps
                       <FormItem>
                         <FormLabel>Business Type</FormLabel>
                         <FormControl>
-                          <SearchableSelect
-                            options={[
-                              // Keep the current value selectable even if it was later deactivated
-                              ...(field.value &&
-                              !businessTypeOptions.some((t) => t.name === field.value)
-                                ? [{ value: field.value, label: field.value }]
-                                : []),
-                              ...businessTypeOptions.map((type) => ({
-                                value: type.name,
-                                label: type.name,
-                              })),
-                            ]}
-                            value={field.value}
-                            onChange={field.onChange}
-                            placeholder="Select business type"
+                          <MultiSelect
+                            options={(() => {
+                              const selected = field.value
+                                ? field.value.split(",").map((s) => s.trim()).filter(Boolean)
+                                : []
+                              // Keep any current value selectable even if later deactivated
+                              const extra = selected
+                                .filter((s) => !businessTypeOptions.some((t) => t.name === s))
+                                .map((s) => ({ value: s, label: s }))
+                              return [
+                                ...extra,
+                                ...businessTypeOptions.map((type) => ({
+                                  value: type.name,
+                                  label: type.name,
+                                })),
+                              ]
+                            })()}
+                            value={
+                              field.value
+                                ? field.value.split(",").map((s) => s.trim()).filter(Boolean)
+                                : []
+                            }
+                            onChange={(arr) => field.onChange(arr.join(", "))}
+                            placeholder="Select business type(s)"
                             searchPlaceholder="Search business types..."
                             emptyText="No business type found."
                           />
@@ -708,6 +723,7 @@ export function LicenseUpdateForm({ license, onSuccess }: LicenseUpdateFormProps
                         <Input
                           placeholder="Fee will be calculated automatically"
                           {...field}
+                          value={selectedCategoryIsFree ? "Free" : field.value}
                           disabled
                           className="bg-muted"
                         />

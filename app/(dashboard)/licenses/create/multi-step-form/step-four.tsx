@@ -26,6 +26,7 @@ type LicenseCategory = {
   name: string
   new_license_fee: string
   renewal_fee: string
+  is_free: boolean
 }
 
 interface StepFourProps {
@@ -87,10 +88,17 @@ const StepFour = ({ onNext, onBack, formData }: StepFourProps) => {
     (type: string, categoryName: string): string => {
       const category = categories.find((c) => c.name === categoryName)
       if (!category) return ""
+      // Free categories carry no fee.
+      if (category.is_free) return "0"
       return type === "Renewal" ? category.renewal_fee : category.new_license_fee
     },
     [categories],
   )
+
+  // Whether the currently selected category is Free.
+  const selectedCategoryIsFree = categories.find(
+    (c) => c.name === license_category,
+  )?.is_free ?? false
 
   // Reset category when it is no longer available (e.g. deactivated) once categories load
   useEffect(() => {
@@ -237,9 +245,13 @@ const StepFour = ({ onNext, onBack, formData }: StepFourProps) => {
                   <div className="border-t pt-2 mt-2">
                     <div className="flex justify-between text-lg font-bold">
                       <span>Total Fee:</span>
-                      <span className="text-blue-600">
-                        ${license_fee ? Number.parseInt(license_fee).toLocaleString() : "0"}
-                      </span>
+                      {selectedCategoryIsFree ? (
+                        <span className="text-emerald-600">Free</span>
+                      ) : (
+                        <span className="text-blue-600">
+                          ${license_fee ? Number.parseInt(license_fee).toLocaleString() : "0"}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>

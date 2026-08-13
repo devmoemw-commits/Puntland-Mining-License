@@ -10,6 +10,7 @@ export type LicenseCategoryRecord = {
   description: string | null;
   new_license_fee: string;
   renewal_fee: string;
+  is_free: boolean;
   is_active: boolean;
   sort_order: number;
 };
@@ -23,6 +24,7 @@ export async function listLicenseCategories(): Promise<LicenseCategoryRecord[]> 
       description: licenseCategories.description,
       new_license_fee: licenseCategories.new_license_fee,
       renewal_fee: licenseCategories.renewal_fee,
+      is_free: licenseCategories.is_free,
       is_active: licenseCategories.is_active,
       sort_order: licenseCategories.sort_order,
     })
@@ -41,6 +43,7 @@ export async function listActiveLicenseCategories(): Promise<
       description: licenseCategories.description,
       new_license_fee: licenseCategories.new_license_fee,
       renewal_fee: licenseCategories.renewal_fee,
+      is_free: licenseCategories.is_free,
       is_active: licenseCategories.is_active,
       sort_order: licenseCategories.sort_order,
     })

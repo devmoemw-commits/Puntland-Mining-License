@@ -6,8 +6,14 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Building, Building2, MapIcon, MapPin, MapPinHouse } from "lucide-react"
+import { Building, MapIcon, MapPin, MapPinHouse } from "lucide-react"
 import { SearchableSelect } from "@/components/ui/searchable-select"
+import { MultiSelect } from "@/components/ui/multi-select"
+
+/** Business types are stored comma-separated in the single `business_type` field. */
+const splitTypes = (v: string) =>
+  v ? v.split(",").map((s) => s.trim()).filter(Boolean) : []
+const joinTypes = (arr: string[]) => arr.join(", ")
 
 import { firstStepSchema } from "@/types/license-schema"
 import type { z } from "zod"
@@ -170,16 +176,14 @@ const StepOne = ({ onNext, formData }: StepOneProps) => {
                 <FormItem>
                   <FormLabel>Business Type</FormLabel>
                   <FormControl>
-                    <SearchableSelect
+                    <MultiSelect
                       options={businessTypes.map((type) => ({ value: type.name, label: type.name }))}
-                      value={field.value}
-                      onChange={field.onChange}
+                      value={splitTypes(field.value)}
+                      onChange={(arr) => field.onChange(joinTypes(arr))}
                       disabled={loading}
-                      placeholder="Select business type"
+                      placeholder="Select business type(s)"
                       searchPlaceholder="Search business types..."
                       emptyText="No business type found."
-                      icon={<Building2 className="h-4 w-4" />}
-                      triggerClassName="capitalize"
                     />
                   </FormControl>
                   <FormMessage />

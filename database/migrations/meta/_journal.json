@@ -176,6 +176,13 @@
       "when": 1760000017000,
       "tag": "0024_notifications",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1760000018000,
+      "tag": "0025_license_category_is_free",
+      "breakpoints": true
     }
   ]
 }

@@ -205,6 +205,8 @@ export const licenseCategories = pgTable("license_categories", {
   renewal_fee: decimal("renewal_fee", { precision: 10, scale: 2 })
     .notNull()
     .default("0"),
+  /** When true, licenses in this category are Free (no payment) — fees are ignored/zero. */
+  is_free: boolean("is_free").default(false).notNull(),
   /** Inactive categories are hidden from application forms but kept for history. */
   is_active: boolean("is_active").default(true).notNull(),
   sort_order: integer("sort_order").default(0).notNull(),

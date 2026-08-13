@@ -666,9 +666,12 @@ export default function LicenseDetails({
                   <div className="mb-4">
                     <p className="text-sm text-gray-500">License Fee</p>
                     <p className="font-medium text-gray-900 dark:text-gray-200">
-                      ${license.calculated_fee} USD
+                      {!license.calculated_fee || Number(license.calculated_fee) <= 0
+                        ? "Free"
+                        : `$${license.calculated_fee} USD`}
                     </p>
                   </div>
+
                 </div>
 
                 <div>
