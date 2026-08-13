@@ -27,7 +27,6 @@ const EMPTY_FORM = {
   renewal_fee: "",
   sort_order: "0",
   is_active: true,
-  is_free: false, // false = Paid (default)
 };
 
 type FormState = typeof EMPTY_FORM;
@@ -49,10 +48,8 @@ export function LicenseCategoriesManager({ categories, canManage }: Props) {
     const payload = {
       name: form.name,
       description: form.description || undefined,
-      // Free categories submit zero fees so validation never blocks on empty fees.
-      new_license_fee: form.is_free ? "0" : form.new_license_fee,
-      renewal_fee: form.is_free ? "0" : form.renewal_fee,
-      is_free: form.is_free,
+      new_license_fee: form.new_license_fee,
+      renewal_fee: form.renewal_fee,
       sort_order: Number(form.sort_order || 0),
       is_active: form.is_active,
     };
@@ -85,7 +82,6 @@ export function LicenseCategoriesManager({ categories, canManage }: Props) {
       renewal_fee: item.renewal_fee,
       sort_order: String(item.sort_order),
       is_active: item.is_active,
-      is_free: item.is_free,
     });
   }
 
@@ -142,40 +138,6 @@ export function LicenseCategoriesManager({ categories, canManage }: Props) {
                 />
               </div>
 
-              {/* Pricing: Paid (default) or Free */}
-              <div className="space-y-2">
-                <Label>Pricing</Label>
-                <div className="flex gap-4">
-                  <label className="flex items-center gap-2 text-sm">
-                    <input
-                      type="radio"
-                      name="pricing"
-                      className="h-4 w-4"
-                      checked={!form.is_free}
-                      onChange={() => setForm((p) => ({ ...p, is_free: false }))}
-                      disabled={pending}
-                    />
-                    <span>Paid</span>
-                  </label>
-                  <label className="flex items-center gap-2 text-sm">
-                    <input
-                      type="radio"
-                      name="pricing"
-                      className="h-4 w-4"
-                      checked={form.is_free}
-                      onChange={() => setForm((p) => ({ ...p, is_free: true }))}
-                      disabled={pending}
-                    />
-                    <span>Free (no payment required)</span>
-                  </label>
-                </div>
-                {form.is_free && (
-                  <p className="text-xs text-muted-foreground">
-                    Licenses in this category will be recorded as <strong>Free</strong> — no fee is charged.
-                  </p>
-                )}
-              </div>
-
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="new_license_fee">New License fee (USD)</Label>
@@ -184,13 +146,13 @@ export function LicenseCategoriesManager({ categories, canManage }: Props) {
                     type="number"
                     min={0}
                     step="0.01"
-                    value={form.is_free ? "" : form.new_license_fee}
+                    value={form.new_license_fee}
                     onChange={(e) =>
                       setForm((p) => ({ ...p, new_license_fee: e.target.value }))
                     }
-                    placeholder={form.is_free ? "Free" : "0"}
-                    disabled={pending || form.is_free}
-                    required={!form.is_free}
+                    placeholder="0"
+                    disabled={pending}
+                    required
                   />
                 </div>
                 <div className="space-y-2">
@@ -200,13 +162,13 @@ export function LicenseCategoriesManager({ categories, canManage }: Props) {
                     type="number"
                     min={0}
                     step="0.01"
-                    value={form.is_free ? "" : form.renewal_fee}
+                    value={form.renewal_fee}
                     onChange={(e) =>
                       setForm((p) => ({ ...p, renewal_fee: e.target.value }))
                     }
-                    placeholder={form.is_free ? "Free" : "0"}
-                    disabled={pending || form.is_free}
-                    required={!form.is_free}
+                    placeholder="0"
+                    disabled={pending}
+                    required
                   />
                 </div>
               </div>
@@ -279,22 +241,10 @@ export function LicenseCategoriesManager({ categories, canManage }: Props) {
               <div key={item.id} className="rounded border p-3 space-y-2">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="flex items-center gap-2 font-medium">
-                      {item.name}
-                      {item.is_free ? (
-                        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300">
-                          Free
-                        </span>
-                      ) : (
-                        <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-medium text-blue-700 dark:bg-blue-900 dark:text-blue-300">
-                          Paid
-                        </span>
-                      )}
-                    </p>
+                    <p className="font-medium">{item.name}</p>
                     <p className="text-xs text-muted-foreground">
-                      {item.is_free
-                        ? "No payment required"
-                        : `New: $${item.new_license_fee} · Renewal: $${item.renewal_fee}`}
+                      New: ${item.new_license_fee} &middot; Renewal: $
+                      {item.renewal_fee}
                     </p>
                   </div>
                   <span

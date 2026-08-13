@@ -18,7 +18,8 @@ const licenseInfoSchema = z.object({
   license_category: z.string().min(1, "License category is required"),
   license_fee: z.string().min(1, "License fee is required"),
   license_area: z.array(z.string()).min(1, "License area is required"),
-  
+  // Pricing choice for this license (Paid default; Free = no fee).
+  is_free: z.boolean().optional(),
 })
 
 type LicenseCategory = {
@@ -26,7 +27,6 @@ type LicenseCategory = {
   name: string
   new_license_fee: string
   renewal_fee: string
-  is_free: boolean
 }
 
 interface StepFourProps {
@@ -43,6 +43,7 @@ const StepFour = ({ onNext, onBack, formData }: StepFourProps) => {
       license_category: formData.license_category || "",
       license_fee: formData.license_fee || "",
       license_area: formData.license_area || [],
+      is_free: formData.is_free ?? false,
     },
   })
 
@@ -56,6 +57,7 @@ const StepFour = ({ onNext, onBack, formData }: StepFourProps) => {
   const license_category = watch("license_category")
   const license_fee = watch("license_fee")
   const license_area = watch("license_area")
+  const is_free = watch("is_free")
 
   // License types
   const licenseTypes = ["New License", "Renewal"]
@@ -88,17 +90,10 @@ const StepFour = ({ onNext, onBack, formData }: StepFourProps) => {
     (type: string, categoryName: string): string => {
       const category = categories.find((c) => c.name === categoryName)
       if (!category) return ""
-      // Free categories carry no fee.
-      if (category.is_free) return "0"
       return type === "Renewal" ? category.renewal_fee : category.new_license_fee
     },
     [categories],
   )
-
-  // Whether the currently selected category is Free.
-  const selectedCategoryIsFree = categories.find(
-    (c) => c.name === license_category,
-  )?.is_free ?? false
 
   // Reset category when it is no longer available (e.g. deactivated) once categories load
   useEffect(() => {
@@ -109,8 +104,12 @@ const StepFour = ({ onNext, onBack, formData }: StepFourProps) => {
     }
   }, [categoriesLoading, categories, license_category, setValue])
 
-  // Calculate fee based on selections
+  // Calculate fee based on selections. Free licenses always cost 0.
   useEffect(() => {
+    if (is_free) {
+      if (license_fee !== "0") setValue("license_fee", "0", { shouldValidate: true })
+      return
+    }
     if (license_type && license_category) {
       const fee = getFeeForSelection(license_type, license_category)
 
@@ -119,7 +118,7 @@ const StepFour = ({ onNext, onBack, formData }: StepFourProps) => {
         setValue("license_fee", fee, { shouldValidate: true })
       }
     }
-  }, [license_type, license_category, license_fee, setValue, getFeeForSelection])
+  }, [is_free, license_type, license_category, license_fee, setValue, getFeeForSelection])
 
   const onSubmit = (values: z.infer<typeof licenseInfoSchema>) => {
     onNext(values)
@@ -194,17 +193,30 @@ const StepFour = ({ onNext, onBack, formData }: StepFourProps) => {
                         emptyText="No category found."
                       />
                     </FormControl>
-                    {field.value && (
-                      <span
-                        className={`mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
-                          selectedCategoryIsFree
-                            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300"
-                            : "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
-                        }`}
-                      >
-                        {selectedCategoryIsFree ? "Free — no payment required" : "Paid"}
-                      </span>
-                    )}
+                    {/* Pricing choice for THIS license (Paid default; Free = no fee) */}
+                    <div className="mt-2 flex flex-wrap items-center gap-4">
+                      <span className="text-sm font-medium">Pricing:</span>
+                      <label className="flex items-center gap-1.5 text-sm">
+                        <input
+                          type="radio"
+                          name="license_pricing"
+                          className="h-4 w-4"
+                          checked={!is_free}
+                          onChange={() => setValue("is_free", false, { shouldValidate: false })}
+                        />
+                        Paid
+                      </label>
+                      <label className="flex items-center gap-1.5 text-sm">
+                        <input
+                          type="radio"
+                          name="license_pricing"
+                          className="h-4 w-4"
+                          checked={!!is_free}
+                          onChange={() => setValue("is_free", true, { shouldValidate: false })}
+                        />
+                        Free (no payment)
+                      </label>
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -256,7 +268,7 @@ const StepFour = ({ onNext, onBack, formData }: StepFourProps) => {
                   <div className="border-t pt-2 mt-2">
                     <div className="flex justify-between text-lg font-bold">
                       <span>Total Fee:</span>
-                      {selectedCategoryIsFree ? (
+                      {is_free ? (
                         <span className="text-emerald-600">Free</span>
                       ) : (
                         <span className="text-blue-600">

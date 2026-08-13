@@ -22,7 +22,6 @@ const createSchema = z.object({
   description: z.string().trim().max(2000).optional(),
   new_license_fee: feeField,
   renewal_fee: feeField,
-  is_free: z.boolean().optional(),
   is_active: z.boolean().optional(),
   sort_order: z.coerce.number().int().min(0).optional(),
 });
@@ -48,14 +47,11 @@ export const createLicenseCategory = actionClient
     if (denied) return { error: denied };
 
     try {
-      const isFree = parsedInput.is_free ?? false;
       await db.insert(licenseCategories).values({
         name: parsedInput.name,
         description: parsedInput.description?.trim() || null,
-        // Free categories always store zero fees.
-        new_license_fee: isFree ? "0" : parsedInput.new_license_fee,
-        renewal_fee: isFree ? "0" : parsedInput.renewal_fee,
-        is_free: isFree,
+        new_license_fee: parsedInput.new_license_fee,
+        renewal_fee: parsedInput.renewal_fee,
         is_active: parsedInput.is_active ?? true,
         sort_order: parsedInput.sort_order ?? 0,
       });
@@ -78,15 +74,13 @@ export const updateLicenseCategory = actionClient
     if (denied) return { error: denied };
 
     try {
-      const isFree = parsedInput.is_free ?? false;
       await db
         .update(licenseCategories)
         .set({
           name: parsedInput.name,
           description: parsedInput.description?.trim() || null,
-          new_license_fee: isFree ? "0" : parsedInput.new_license_fee,
-          renewal_fee: isFree ? "0" : parsedInput.renewal_fee,
-          is_free: isFree,
+          new_license_fee: parsedInput.new_license_fee,
+          renewal_fee: parsedInput.renewal_fee,
           is_active: parsedInput.is_active ?? true,
           sort_order: parsedInput.sort_order ?? 0,
           updated_at: new Date(),

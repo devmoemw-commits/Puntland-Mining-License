@@ -58,6 +58,7 @@ export type License = {
   license_type: string
   license_category: string
   calculated_fee: string
+  is_free?: boolean
   license_area: string[] | string // Support both for backward compatibility
   created_at: string
   updated_at: string
@@ -95,6 +96,7 @@ const formSchema = z.object({
   license_category: z.string().min(1, "License category is required"),
   license_area: z.array(z.string()).min(1, "License area is required"),
   calculated_fee: z.string().min(1, "Calculated fee is required"),
+  is_free: z.boolean().optional(),
 })
 
 interface LicenseUpdateFormProps {
@@ -116,7 +118,6 @@ type LicenseCategory = {
   name: string
   new_license_fee: string
   renewal_fee: string
-  is_free: boolean
 }
 
 export function LicenseUpdateForm({ license, onSuccess }: LicenseUpdateFormProps) {
@@ -155,6 +156,7 @@ export function LicenseUpdateForm({ license, onSuccess }: LicenseUpdateFormProps
           ? [license.license_area]
           : [],
       calculated_fee: license.calculated_fee,
+      is_free: license.is_free ?? false,
     },
   })
 
@@ -272,20 +274,24 @@ export function LicenseUpdateForm({ license, onSuccess }: LicenseUpdateFormProps
   const license_category = form.watch("license_category")
 
   // Calculate fee based on the selected type + category (fees are stored on the category)
+  const is_free = form.watch("is_free")
+
   const getFeeForSelection = useCallback(
     (type: string, categoryName: string): string => {
       const category = categories.find((c) => c.name === categoryName)
       if (!category) return ""
-      if (category.is_free) return "0"
       return type === "Renewal" ? category.renewal_fee : category.new_license_fee
     },
     [categories],
   )
 
-  const selectedCategoryIsFree =
-    categories.find((c) => c.name === license_category)?.is_free ?? false
-
   useEffect(() => {
+    if (is_free) {
+      if (form.getValues("calculated_fee") !== "0") {
+        form.setValue("calculated_fee", "0", { shouldValidate: true })
+      }
+      return
+    }
     if (license_type && license_category) {
       const fee = getFeeForSelection(license_type, license_category)
 
@@ -293,7 +299,7 @@ export function LicenseUpdateForm({ license, onSuccess }: LicenseUpdateFormProps
         form.setValue("calculated_fee", fee, { shouldValidate: true })
       }
     }
-  }, [license_type, license_category, form, getFeeForSelection])
+  }, [is_free, license_type, license_category, form, getFeeForSelection])
 
   // Handle form submission
   async function onSubmit(values: z.infer<typeof formSchema>) {
@@ -693,17 +699,30 @@ export function LicenseUpdateForm({ license, onSuccess }: LicenseUpdateFormProps
                             emptyText="No category found."
                           />
                         </FormControl>
-                        {field.value && (
-                          <span
-                            className={`mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
-                              selectedCategoryIsFree
-                                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300"
-                                : "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
-                            }`}
-                          >
-                            {selectedCategoryIsFree ? "Free — no payment required" : "Paid"}
-                          </span>
-                        )}
+                        {/* Pricing choice for THIS license (Paid default; Free = no fee) */}
+                        <div className="mt-2 flex flex-wrap items-center gap-4">
+                          <span className="text-sm font-medium">Pricing:</span>
+                          <label className="flex items-center gap-1.5 text-sm">
+                            <input
+                              type="radio"
+                              name="license_pricing_edit"
+                              className="h-4 w-4"
+                              checked={!is_free}
+                              onChange={() => form.setValue("is_free", false, { shouldValidate: false })}
+                            />
+                            Paid
+                          </label>
+                          <label className="flex items-center gap-1.5 text-sm">
+                            <input
+                              type="radio"
+                              name="license_pricing_edit"
+                              className="h-4 w-4"
+                              checked={!!is_free}
+                              onChange={() => form.setValue("is_free", true, { shouldValidate: false })}
+                            />
+                            Free (no payment)
+                          </label>
+                        </div>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -734,7 +753,7 @@ export function LicenseUpdateForm({ license, onSuccess }: LicenseUpdateFormProps
                         <Input
                           placeholder="Fee will be calculated automatically"
                           {...field}
-                          value={selectedCategoryIsFree ? "Free" : field.value}
+                          value={is_free ? "Free" : field.value}
                           disabled
                           className="bg-muted"
                         />

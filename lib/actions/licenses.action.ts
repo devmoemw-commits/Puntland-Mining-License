@@ -118,6 +118,7 @@ export const RegisterLicense = actionClient.schema(licensesSchema).action(
       license_category,
       license_fee,
       license_area,
+      is_free,
       is_draft,
     },
   }) => {
@@ -176,7 +177,9 @@ export const RegisterLicense = actionClient.schema(licensesSchema).action(
       license_type: license_type,
       license_category: license_category,
       license_area: license_area,
-      calculated_fee: license_fee,
+      // Free licenses carry no fee.
+      calculated_fee: is_free ? "0" : license_fee,
+      is_free: is_free ?? false,
 
       // Drafts are saved without entering the approval workflow.
       status: is_draft ? "DRAFT" : "PENDING",

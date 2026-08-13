@@ -190,6 +190,13 @@
       "when": 1760000019000,
       "tag": "0026_license_status_draft",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1760000020000,
+      "tag": "0027_license_is_free",
+      "breakpoints": true
     }
   ]
 }

@@ -241,15 +241,19 @@ const StepFive = ({ onBack, handleSubmit, formData, isSubmitting }: StepFiveProp
                     </div>
                   </div>
 
-                  {formData.license_fee && (
-                    <div className="flex items-start gap-3">
-                      <DollarSign className="h-5 w-5 text-gray-500 mt-0.5" />
-                      <div>
-                        <p className="text-sm font-medium text-gray-500">License Fee</p>
-                        <p className="font-medium">${formData.license_fee}</p>
-                      </div>
+                  <div className="flex items-start gap-3">
+                    <DollarSign className="h-5 w-5 text-gray-500 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">License Fee</p>
+                      <p className="font-medium">
+                        {formData.is_free
+                          ? "Free"
+                          : formData.license_fee
+                            ? `$${formData.license_fee}`
+                            : "Not provided"}
+                      </p>
                     </div>
-                  )}
+                  </div>
                 </div>
               ) : (
                 <div className="bg-gray-50 p-4 rounded-md">

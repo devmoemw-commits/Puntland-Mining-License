@@ -261,6 +261,9 @@ export const licenses = pgTable("licenses", {
   latitude: decimal("latitude", { precision: 10, scale: 6 }),
   longitude: decimal("longitude", { precision: 10, scale: 6 }),
 
+  // 👉 Pricing: chosen per-license at creation. When true, this license is Free (fee = 0).
+  is_free: boolean("is_free").default(false).notNull(),
+
   // 👉 STEP 5 - Signature true/false
   signature: boolean("signature").default(false),
   /** User who applied the official signature (links to users.signature_image_url). */

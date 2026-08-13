@@ -48,6 +48,9 @@ export const licensesSchema = z.object({
   license_fee: z.string().min(1, "License fee is required"),
   license_area: z.array(z.string()).min(1, "License area is required"),
 
+  // 👉 Pricing chosen for this license: when true, it is Free (fee forced to 0)
+  is_free: z.boolean().optional(),
+
   // 👉 When true, save as a Draft (not submitted into the approval workflow)
   is_draft: z.boolean().optional(),
 })
@@ -133,6 +136,7 @@ export const updateLicenseSchema = z.object({
   license_area: z.array(z.string()).optional(),
   calculated_fee: z.string().optional(),
   expire_date: z.string().optional(),
+  is_free: z.boolean().optional(),
 
   // Status field (optional for updates)
   status: z.enum(licenseStatusValues).optional(),
