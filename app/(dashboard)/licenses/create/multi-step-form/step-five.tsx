@@ -16,6 +16,7 @@ import {
   Mail,
   BadgeIcon as IdCard,
   FileText,
+  Save,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
@@ -25,14 +26,18 @@ import type { licensesSchema } from "@/types/license-schema"
 
 interface StepFiveProps {
   onBack: () => void
-  handleSubmit: (values: z.infer<typeof licensesSchema>) => void
+  handleSubmit: (values: z.infer<typeof licensesSchema>, asDraft?: boolean) => void
   formData: z.infer<typeof licensesSchema>
   isSubmitting: boolean
 }
 
 const StepFive = ({ onBack, handleSubmit, formData, isSubmitting }: StepFiveProps) => {
   const onSubmit = () => {
-    handleSubmit(formData)
+    handleSubmit(formData, false)
+  }
+
+  const onSaveDraft = () => {
+    handleSubmit(formData, true)
   }
 
   // Check if document details are provided
@@ -284,15 +289,27 @@ const StepFive = ({ onBack, handleSubmit, formData, isSubmitting }: StepFiveProp
         </div>
       </div>
 
-      <div className="flex justify-between">
+      <div className="flex flex-wrap justify-between gap-2">
         <Button onClick={onBack} variant="outline" type="button" className="gap-2">
           <ArrowLeft className="h-4 w-4" />
           Back
         </Button>
-        <Button onClick={onSubmit} className="gap-2" disabled={isSubmitting}>
-          <Check className="h-4 w-4" />
-          {isSubmitting ? "Submitting..." : "Submit Application"}
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            onClick={onSaveDraft}
+            variant="outline"
+            type="button"
+            className="gap-2"
+            disabled={isSubmitting}
+          >
+            <Save className="h-4 w-4" />
+            Save as Draft
+          </Button>
+          <Button onClick={onSubmit} className="gap-2" disabled={isSubmitting}>
+            <Check className="h-4 w-4" />
+            {isSubmitting ? "Submitting..." : "Submit Application"}
+          </Button>
+        </div>
       </div>
     </div>
   )

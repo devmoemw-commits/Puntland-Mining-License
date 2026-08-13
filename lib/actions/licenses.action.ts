@@ -118,6 +118,7 @@ export const RegisterLicense = actionClient.schema(licensesSchema).action(
       license_category,
       license_fee,
       license_area,
+      is_draft,
     },
   }) => {
     
@@ -176,11 +177,14 @@ export const RegisterLicense = actionClient.schema(licensesSchema).action(
       license_category: license_category,
       license_area: license_area,
       calculated_fee: license_fee,
+
+      // Drafts are saved without entering the approval workflow.
+      status: is_draft ? "DRAFT" : "PENDING",
     }).returning({ id: licenses.id });
 
     if (createdLicense?.id) {
       const activeWorkflow = await getActiveLicenseWorkflow();
-      if (activeWorkflow) {
+      if (activeWorkflow && !is_draft) {
         try {
           await db.insert(licenseWorkflowInstances).values({
             licenseId: createdLicense.id,
@@ -194,15 +198,21 @@ export const RegisterLicense = actionClient.schema(licensesSchema).action(
       }
 
       await logActivity({
-        action: "license.create",
+        action: is_draft ? "license.draft_create" : "license.create",
         entityType: "license",
         entityId: createdLicense.id,
         entityLabel: refId,
-        summary: `Registered license ${refId} for ${company_name}`,
+        summary: is_draft
+          ? `Saved draft license ${refId} for ${company_name}`
+          : `Registered license ${refId} for ${company_name}`,
       });
     }
 
-    return { success: "License registered successfully" };
+    return {
+      success: is_draft
+        ? "License saved as draft"
+        : "License registered successfully",
+    };
   }
 );
 
@@ -279,14 +289,96 @@ async function requireLicenseAdmin(): Promise<
   return { ok: true, userId: session.user.id };
 }
 
-// Deletion is permanently disabled to preserve production data and audit history.
-// Use AdminSetLicenseStatus (Cancel) instead — the record is retained, only the status changes.
+// Admin-only permanent delete of a license (and its cascaded workflow / inspection /
+// renewal history). Explicitly enabled per product decision; restricted to admins holding
+// LICENSE_MODERATE (SUPER_ADMIN and ADMIN).
 export const AdminDeleteLicense = actionClient
   .schema(adminLicenseActionSchema)
-  .action(async () => {
-    const guard = await requireLicenseAdmin();
-    if ("error" in guard) return { error: guard.error };
-    return dataDeletionBlockedResult();
+  .action(async ({ parsedInput: { id } }) => {
+    const denied = await requireActionPermission(Permissions.LICENSE_MODERATE);
+    if (denied) return { error: denied };
+
+    try {
+      const [existing] = await db
+        .select({ ref: licenses.license_ref_id, company: licenses.company_name })
+        .from(licenses)
+        .where(eq(licenses.id, id))
+        .limit(1);
+      if (!existing) return { error: "License not found" };
+
+      // Log before deleting (activity_logs has no FK to licenses, so it persists).
+      await logActivity({
+        action: "license.delete",
+        entityType: "license",
+        entityId: id,
+        entityLabel: existing.ref,
+        summary: `Deleted license ${existing.ref} (${existing.company})`,
+      });
+
+      await db.delete(licenses).where(eq(licenses.id, id));
+      return { success: "License deleted successfully" };
+    } catch (error) {
+      console.error("Error deleting license:", error);
+      return {
+        error: `Failed to delete license: ${error instanceof Error ? error.message : String(error)}`,
+      };
+    }
+  });
+
+// Submit a DRAFT license into the approval workflow (DRAFT -> PENDING + init workflow instance).
+export const SubmitLicenseDraft = actionClient
+  .schema(adminLicenseActionSchema)
+  .action(async ({ parsedInput: { id } }) => {
+    const denied = await requireActionPermission(Permissions.LICENSE_REGISTER);
+    if (denied) return { error: denied };
+
+    try {
+      const [current] = await db
+        .select({ status: licenses.status, ref: licenses.license_ref_id })
+        .from(licenses)
+        .where(eq(licenses.id, id))
+        .limit(1);
+      if (!current) return { error: "License not found" };
+      if (current.status !== "DRAFT") {
+        return { error: "Only draft licenses can be submitted." };
+      }
+
+      await db
+        .update(licenses)
+        .set({ status: "PENDING", updated_at: new Date() })
+        .where(eq(licenses.id, id));
+
+      // Initialize a workflow instance if the module has an active workflow.
+      const activeWorkflow = await getActiveLicenseWorkflow();
+      if (activeWorkflow) {
+        try {
+          await db.insert(licenseWorkflowInstances).values({
+            licenseId: id,
+            workflowId: activeWorkflow.id,
+            definitionSnapshot: activeWorkflow.definition,
+          });
+        } catch (error) {
+          console.error("Failed to initialize workflow instance on submit:", error);
+        }
+      }
+
+      await logActivity({
+        action: "license.draft_submit",
+        entityType: "license",
+        entityId: id,
+        entityLabel: current.ref,
+        summary: `Submitted draft license ${current.ref} for review`,
+      });
+
+      revalidatePath("/licenses");
+      revalidatePath(`/licenses/${id}`);
+      return { success: "Draft submitted for review" };
+    } catch (error) {
+      console.error("Error submitting draft:", error);
+      return {
+        error: `Failed to submit draft: ${error instanceof Error ? error.message : String(error)}`,
+      };
+    }
   });
 
 // Admin-only status override: suspend an approved license, cancel it, or reinstate a suspended one.
@@ -487,7 +579,12 @@ export const UpdateLicenseStatus = actionClient
         return { error: "License not found" };
       }
 
-      // Administrative statuses are managed by AdminSetLicenseStatus, not the workflow.
+      // Drafts must be submitted first; administrative statuses are managed separately.
+      if (current.status === "DRAFT") {
+        return {
+          error: "This license is a draft. Submit it for review before progressing it.",
+        };
+      }
       if (current.status === "SUSPENDED" || current.status === "CANCELLED") {
         return {
           error: `This license is ${current.status.toLowerCase()} and cannot be progressed through the approval workflow.`,

@@ -111,6 +111,7 @@ export function DataTable<TData, TValue>({ columns, data }: DataTableProps<TData
                 column={table.getColumn("status")}
                 title="Status"
                 options={[
+                  { label: "Draft", value: "DRAFT" },
                   { label: "Pending", value: "PENDING" },
                   { label: "In Review", value: "REVIEW" },
                   { label: "Approved", value: "APPROVED" },

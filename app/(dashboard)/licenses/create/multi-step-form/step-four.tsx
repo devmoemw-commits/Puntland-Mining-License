@@ -194,6 +194,17 @@ const StepFour = ({ onNext, onBack, formData }: StepFourProps) => {
                         emptyText="No category found."
                       />
                     </FormControl>
+                    {field.value && (
+                      <span
+                        className={`mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
+                          selectedCategoryIsFree
+                            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300"
+                            : "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
+                        }`}
+                      >
+                        {selectedCategoryIsFree ? "Free — no payment required" : "Paid"}
+                      </span>
+                    )}
                     <FormMessage />
                   </FormItem>
                 )}

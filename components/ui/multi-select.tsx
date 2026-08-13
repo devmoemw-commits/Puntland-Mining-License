@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, ChevronsUpDown, X } from "lucide-react";
+import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,7 +13,6 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Badge } from "@/components/ui/badge";
 
 export interface MultiSelectOption {
   value: string;
@@ -64,11 +63,7 @@ export function MultiSelect({
             className="w-full justify-between font-normal"
           >
             <span className="truncate">
-              {value.length === 0
-                ? placeholder
-                : value.length === 1
-                  ? labelFor(value[0])
-                  : `${value.length} selected`}
+              {value.length === 0 ? placeholder : value.map(labelFor).join(", ")}
             </span>
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
@@ -106,24 +101,6 @@ export function MultiSelect({
           </Command>
         </PopoverContent>
       </Popover>
-
-      {value.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {value.map((v) => (
-            <Badge key={v} variant="secondary" className="gap-1 capitalize">
-              {labelFor(v)}
-              <button
-                type="button"
-                onClick={() => toggle(v)}
-                className="ml-0.5 rounded-full hover:bg-muted-foreground/20"
-                aria-label={`Remove ${labelFor(v)}`}
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </Badge>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

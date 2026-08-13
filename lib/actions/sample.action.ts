@@ -297,8 +297,12 @@ export const UpdateSampleStatus = actionClient
         return { error: "Sample not found" };
       }
 
-      // Samples never enter administrative statuses, but the shared enum includes them.
-      if (current.status === "SUSPENDED" || current.status === "CANCELLED") {
+      // Samples never enter administrative/draft statuses, but the shared enum includes them.
+      if (
+        current.status === "SUSPENDED" ||
+        current.status === "CANCELLED" ||
+        current.status === "DRAFT"
+      ) {
         return {
           error: `This sample is ${current.status.toLowerCase()} and cannot be changed.`,
         };

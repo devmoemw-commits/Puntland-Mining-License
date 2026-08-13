@@ -183,6 +183,13 @@
       "when": 1760000018000,
       "tag": "0025_license_category_is_free",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1760000019000,
+      "tag": "0026_license_status_draft",
+      "breakpoints": true
     }
   ]
 }

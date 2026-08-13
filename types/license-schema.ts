@@ -9,6 +9,7 @@ export const licenseStatusValues = [
   "REJECTED",
   "SUSPENDED",
   "CANCELLED",
+  "DRAFT",
 ] as const
 
 // Statuses reachable through the normal approval workflow (excludes admin overrides).
@@ -46,6 +47,9 @@ export const licensesSchema = z.object({
   license_category: z.string().min(1, "License category is required"),
   license_fee: z.string().min(1, "License fee is required"),
   license_area: z.array(z.string()).min(1, "License area is required"),
+
+  // 👉 When true, save as a Draft (not submitted into the approval workflow)
+  is_draft: z.boolean().optional(),
 })
 
 // Step-by-step schemas for multi-step forms
@@ -232,6 +236,8 @@ export const getStatusDisplayText = (status: LicenseStatus): string => {
       return "Suspended"
     case "CANCELLED":
       return "Cancelled"
+    case "DRAFT":
+      return "Draft"
     default:
       return status
   }
@@ -252,6 +258,8 @@ export const getStatusColorClass = (status: LicenseStatus): string => {
       return "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300"
     case "CANCELLED":
       return "bg-gray-200 text-gray-800 dark:bg-gray-800 dark:text-gray-300"
+    case "DRAFT":
+      return "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300"
     default:
       return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300"
   }

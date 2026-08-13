@@ -145,8 +145,8 @@ export default function MultiStepForm() {
     },
   })
 
-  const finalSubmit = (values: LicenseFormData) => {
-    execute(values)
+  const finalSubmit = (values: LicenseFormData, asDraft = false) => {
+    execute({ ...values, is_draft: asDraft })
   }
 
   return (

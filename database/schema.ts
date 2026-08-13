@@ -24,6 +24,7 @@ export const licenseStatusEnum = pgEnum("license_status", [
   "REJECTED",
   "SUSPENDED",
   "CANCELLED",
+  "DRAFT",
 ]);
 
 /** Application roles (managed in DB; referenced by `users.role` and `role_permissions.role`). */

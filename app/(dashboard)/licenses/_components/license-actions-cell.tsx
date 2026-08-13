@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Ban, Eye, MoreHorizontal, PauseCircle, Pencil, PlayCircle, X, XCircle } from "lucide-react"
+import { Eye, MoreHorizontal, PauseCircle, Pencil, PlayCircle, Send, Trash2, X, XCircle } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,8 +16,9 @@ import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { toast } from "sonner"
 import {
-  AdminRevokeLicense,
+  AdminDeleteLicense,
   AdminSetLicenseStatus,
+  SubmitLicenseDraft,
   UpdateLicenseStatus,
 } from "@/lib/actions/licenses.action"
 import type { License } from "../column"
@@ -35,25 +36,10 @@ export function LicenseActionsCell({ license }: LicenseActionsCellProps) {
   const permissionCodes = session?.user?.permissionCodes ?? []
   const hasPermission = (permission: string) => permissionCodes.includes(permission)
 
-  // Revoke (clears an approval signature) stays restricted to SUPER_ADMIN.
-  const isSuperAdmin = (session?.user?.role ?? "").toUpperCase() === "SUPER_ADMIN"
-  const canAdminManage = isSuperAdmin && hasPermission(Permissions.LICENSE_MODERATE)
-  // Suspend / Cancel / Reinstate are available to admins holding the moderation permission
-  // (SUPER_ADMIN and ADMIN). Records are never deleted — only the status changes.
+  // Suspend / Cancel / Reinstate / Delete are available to admins holding the moderation permission
+  // (SUPER_ADMIN and ADMIN).
   const canModerate = hasPermission(Permissions.LICENSE_MODERATE)
-
-  const handleRevoke = async () => {
-    setIsDropdownOpen(false)
-    if (!window.confirm("Revoke this license's approval signature?")) return
-
-    const result = await AdminRevokeLicense({ id: license.id })
-    if (result?.data?.error) {
-      toast.error(String(result.data.error))
-      return
-    }
-    toast.success("License revoked successfully")
-    router.refresh()
-  }
+  const isDraft = license.status === "DRAFT"
 
   const handleAdminStatus = async (
     target: "SUSPENDED" | "CANCELLED" | "APPROVED",
@@ -65,9 +51,7 @@ export function LicenseActionsCell({ license }: LicenseActionsCellProps) {
         : target === "CANCELLED"
           ? "cancel"
           : "reinstate"
-    const reason = window
-      .prompt(`Reason for ${verb} (required):`)
-      ?.trim()
+    const reason = window.prompt(`Reason for ${verb} (required):`)?.trim()
     if (!reason) {
       toast.error("A reason is required")
       return
@@ -83,6 +67,35 @@ export function LicenseActionsCell({ license }: LicenseActionsCellProps) {
       return
     }
     toast.success(String(result?.data?.success ?? "License updated"))
+    router.refresh()
+  }
+
+  const handleDelete = async () => {
+    setIsDropdownOpen(false)
+    if (
+      !window.confirm(
+        `Permanently delete license ${license.license_ref_id}? This removes the record and its workflow, inspection and renewal history. This cannot be undone.`,
+      )
+    )
+      return
+
+    const result = await AdminDeleteLicense({ id: license.id })
+    if (result?.data?.error) {
+      toast.error(String(result.data.error))
+      return
+    }
+    toast.success("License deleted")
+    router.refresh()
+  }
+
+  const handleSubmitDraft = async () => {
+    setIsDropdownOpen(false)
+    const result = await SubmitLicenseDraft({ id: license.id })
+    if (result?.data?.error) {
+      toast.error(String(result.data.error))
+      return
+    }
+    toast.success("Draft submitted for review")
     router.refresh()
   }
 
@@ -155,35 +168,50 @@ export function LicenseActionsCell({ license }: LicenseActionsCellProps) {
             </Link>
           </DropdownMenuItem>
 
-          {/* Status update actions */}
-          {(hasPermission(Permissions.LICENSE_MODERATE) ||
-            hasPermission(Permissions.LICENSE_REVIEW) ||
-            hasPermission(Permissions.LICENSE_APPROVE) ||
-            hasPermission(Permissions.LICENSE_REJECT)) && (
+          {/* Draft: submit for review */}
+          {isDraft && (
             <>
               <DropdownMenuSeparator />
-              {license.status === "PENDING" && (
-                <DropdownMenuItem
-                  onClick={() => handleStatusUpdate("REVIEW")}
-                  className="text-blue-600 focus:text-blue-600 focus:bg-blue-50 dark:focus:bg-blue-950"
-                >
-                  <Eye className="mr-2 h-4 w-4" />
-                  Send To Review
-                </DropdownMenuItem>
-              )}
-              {license.status === "REVIEW" && (
-                <DropdownMenuItem
-                  onClick={() => handleStatusUpdate("REJECTED")}
-                  className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950"
-                >
-                  <X className="mr-2 h-4 w-4" />
-                  Reject
-                </DropdownMenuItem>
-              )}
+              <DropdownMenuItem
+                onClick={handleSubmitDraft}
+                className="text-indigo-600 focus:text-indigo-600 focus:bg-indigo-50 dark:focus:bg-indigo-950"
+              >
+                <Send className="mr-2 h-4 w-4" />
+                Submit for Review
+              </DropdownMenuItem>
             </>
           )}
 
-          {/* Admin status overrides (no deletion — data is always preserved) */}
+          {/* Status update actions (not applicable to drafts) */}
+          {!isDraft &&
+            (hasPermission(Permissions.LICENSE_MODERATE) ||
+              hasPermission(Permissions.LICENSE_REVIEW) ||
+              hasPermission(Permissions.LICENSE_APPROVE) ||
+              hasPermission(Permissions.LICENSE_REJECT)) && (
+              <>
+                <DropdownMenuSeparator />
+                {license.status === "PENDING" && (
+                  <DropdownMenuItem
+                    onClick={() => handleStatusUpdate("REVIEW")}
+                    className="text-blue-600 focus:text-blue-600 focus:bg-blue-50 dark:focus:bg-blue-950"
+                  >
+                    <Eye className="mr-2 h-4 w-4" />
+                    Send To Review
+                  </DropdownMenuItem>
+                )}
+                {license.status === "REVIEW" && (
+                  <DropdownMenuItem
+                    onClick={() => handleStatusUpdate("REJECTED")}
+                    className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950"
+                  >
+                    <X className="mr-2 h-4 w-4" />
+                    Reject
+                  </DropdownMenuItem>
+                )}
+              </>
+            )}
+
+          {/* Admin status overrides + delete */}
           {canModerate && (
             <>
               <DropdownMenuSeparator />
@@ -205,7 +233,7 @@ export function LicenseActionsCell({ license }: LicenseActionsCellProps) {
                   Reinstate
                 </DropdownMenuItem>
               )}
-              {license.status !== "CANCELLED" && (
+              {license.status !== "CANCELLED" && !isDraft && (
                 <DropdownMenuItem
                   onClick={() => handleAdminStatus("CANCELLED")}
                   className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950"
@@ -214,19 +242,12 @@ export function LicenseActionsCell({ license }: LicenseActionsCellProps) {
                   Cancel
                 </DropdownMenuItem>
               )}
-            </>
-          )}
-
-          {/* Revoke an approval signature (Super Admin only) */}
-          {canAdminManage && license.status === "APPROVED" && (
-            <>
-              <DropdownMenuSeparator />
               <DropdownMenuItem
-                onClick={handleRevoke}
-                className="text-amber-600 focus:text-amber-600 focus:bg-amber-50 dark:focus:bg-amber-950"
+                onClick={handleDelete}
+                className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950"
               >
-                <Ban className="mr-2 h-4 w-4" />
-                Revoke
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
               </DropdownMenuItem>
             </>
           )}
