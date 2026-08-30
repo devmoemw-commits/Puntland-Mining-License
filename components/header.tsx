@@ -36,7 +36,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { handleSignOut } from "@/lib/actions/auth.action";
-import config from "@/lib/config/config";
 import type { Session } from "next-auth";
 import ClockHeader from "./clock";
 
@@ -87,7 +86,7 @@ export function DashboardHeader({ session }: { session: Session }) {
   useEffect(() => {
     const fetchExpiringLicenses = async () => {
       try {
-        const response = await fetch(`${config.env.apiEndpoint}/api/licenses`);
+        const response = await fetch(`/api/licenses`);
         if (!response.ok) return;
 
         const licenses: License[] = await response.json();

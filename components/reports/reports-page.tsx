@@ -12,7 +12,6 @@ import MonthlyRevenueChart from "./monthly-revenue-chart"
 import YearlyTrendsChart from "./yearly-trends-chart"
 import LicenseTypeBreakdown from "./license-type-breakdown"
 import CountryDistributionReport from "./country-distribution-report"
-import config from "@/lib/config/config"
 
 interface License {
   id: string
@@ -59,7 +58,7 @@ export default function ReportsPage() {
   useEffect(() => {
     const fetchLicenses = async () => {
       try {
-        const response = await fetch(`${config.env.apiEndpoint}/api/licenses`)
+        const response = await fetch(`/api/licenses`)
         if (!response.ok) throw new Error("Failed to fetch licenses")
         const data = await response.json()
         setLicenses(data)

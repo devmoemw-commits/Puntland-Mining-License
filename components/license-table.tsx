@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { ChevronDown, Search } from "lucide-react"
-import config from "@/lib/config/config"
 import Link from "next/link"
 import { formatDate } from "@/lib/utils"
 import { getStatusColorClass, getStatusDisplayText } from "@/types/license-schema"
@@ -32,7 +31,7 @@ export default function LicenseTable() {
   useEffect(() => {
     async function fetchLicenses() {
       try {
-        const res = await fetch(`${config.env.apiEndpoint}/api/licenses`, {
+        const res = await fetch(`/api/licenses`, {
           cache: "no-cache",
         })
         const data = await res.json()

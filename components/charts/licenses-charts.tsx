@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import LicenseFeeChart from "./license-fee-chart";
 import CountryOriginChart from "./country-origin-chart";
 import MiningAreaChart from "./mining-area-chart";
-import config from "@/lib/config/config";
 
 interface License {
   id: string;
@@ -45,7 +44,7 @@ export default function LicensesCharts() {
   useEffect(() => {
     const fetchLicenses = async () => {
       try {
-        const response = await fetch(`${config.env.apiEndpoint}/api/licenses`);
+        const response = await fetch(`/api/licenses`);
         if (!response.ok) {
           throw new Error("Failed to fetch licenses");
         }

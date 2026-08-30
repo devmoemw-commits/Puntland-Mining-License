@@ -70,10 +70,19 @@ export function SystemAssetUpload({
   const IKUploadRef = useRef<HTMLInputElement>(null);
   const [progress, setProgress] = useState(0);
   const [uploading, setUploading] = useState(false);
+  // Remount the IKUpload input after each attempt so "Replace image" reliably
+  // re-triggers an upload (imagekitio-next won't re-upload on a stale input).
+  const [uploadKey, setUploadKey] = useState(0);
+
+  const resetInput = () => {
+    if (IKUploadRef.current) IKUploadRef.current.value = "";
+    setUploadKey((k) => k + 1);
+  };
 
   const onError = (error?: unknown) => {
     setUploading(false);
     setProgress(0);
+    resetInput();
     const message = (() => {
       if (error instanceof Error && error.message) return error.message;
       if (typeof error === "string" && error.trim()) return error;
@@ -96,6 +105,7 @@ export function SystemAssetUpload({
     setUploading(false);
     setProgress(100);
     toast.success("Uploaded");
+    resetInput();
     setTimeout(() => setProgress(0), 1500);
   };
 
@@ -146,7 +156,10 @@ export function SystemAssetUpload({
               variant="secondary"
               size="icon"
               className="absolute top-1 right-1 h-7 w-7"
-              onClick={() => onUrlChange("")}
+              onClick={() => {
+                onUrlChange("");
+                resetInput();
+              }}
             >
               <X className="h-4 w-4" />
             </Button>
@@ -172,6 +185,7 @@ export function SystemAssetUpload({
           <span className="text-xs text-muted-foreground">PNG, JPG up to 5MB</span>
         </div>
         <IKUpload
+          key={uploadKey}
           className="hidden"
           ref={IKUploadRef}
           folder={imageKitFolder}
