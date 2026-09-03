@@ -111,9 +111,8 @@ export default function LicenseDetails({
     Permissions.LICENSE_MODERATE,
   );
 
-  // Printing requires an approved license AND a fully completed workflow (all steps done).
-  const canPrintCertificate =
-    license.status === "APPROVED" && (workflow ? workflow.allStepsCompleted !== false : true);
+  // Printing is available for an approved license (no longer blocked by remaining workflow steps).
+  const canPrintCertificate = license.status === "APPROVED";
 
   const router = useRouter();
 
@@ -585,11 +584,6 @@ export default function LicenseDetails({
                           <Printer />
                           Print Certificate
                         </Button>
-                        {!canPrintCertificate && (
-                          <p className="text-xs text-amber-600 dark:text-amber-400">
-                            Printing is available once all approval workflow steps are completed.
-                          </p>
-                        )}
                       </div>
                     </DialogFooter>
                   </DialogContent>
