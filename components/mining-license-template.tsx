@@ -15,7 +15,7 @@ type LicenseProps = {
   qrCodeUrl?: string;
   /** Signer’s profile image (ImageKit); falls back to `/assets/signature.png`. */
   signerSignatureUrl?: string | null;
-  /** Full URL from system settings; falls back to `/assets/moemw-logo.png`. */
+  /** Full URL from system settings; the stamp area is left blank when unset. */
   ministerStampUrl?: string | null;
 };
 
@@ -144,14 +144,17 @@ export default function MiningLicense({
           style={{ margin: "8px 116px 99px" }}
         >
           <div className="flex items-end">
+            {/* Stamp area: blank (spacer only) unless a stamp is configured in Settings. */}
             <div className="relative h-[72px] w-[72px] sm:h-[84px] sm:w-[84px] md:h-[96px] md:w-[96px] print:h-[100px] print:w-[100px]">
-              <Image
-                src={ministerStampUrl || "/assets/moemw-logo.png"}
-                alt="Official Seal"
-                fill
-                style={{ objectFit: "contain" }}
-                unoptimized={!!ministerStampUrl}
-              />
+              {ministerStampUrl ? (
+                <Image
+                  src={ministerStampUrl}
+                  alt="Official Seal"
+                  fill
+                  style={{ objectFit: "contain" }}
+                  unoptimized
+                />
+              ) : null}
             </div>
           </div>
 
