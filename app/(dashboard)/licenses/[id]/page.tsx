@@ -239,14 +239,20 @@ async function getLicenseWorkflowByLicenseId(
       );
       allStepsCompleted =
         instanceRow.instance.currentStepNumber >= maxStepNumber;
+      // Roles named by the workflow, PLUS any role that actually acted on this licence.
+      // A SUPER_ADMIN override is legitimate but isn't in the definition, so without this
+      // union it renders no card at all — the licence reads APPROVED while every step
+      // still shows "Pending / No Action Taken".
+      const definedRoleCodes = ordered.flatMap((step) =>
+        Array.isArray(step.roles)
+          ? step.roles.map((r) => String(r).trim().toUpperCase()).filter(Boolean)
+          : [],
+      );
+      const actedRoleCodes = transitionRows
+        .map((row) => row.actorRole?.trim().toUpperCase())
+        .filter((code): code is string => Boolean(code));
       const roleCodes = Array.from(
-        new Set(
-          ordered.flatMap((step) =>
-            Array.isArray(step.roles)
-              ? step.roles.map((r) => String(r).trim().toUpperCase()).filter(Boolean)
-              : [],
-          ),
-        ),
+        new Set([...definedRoleCodes, ...actedRoleCodes]),
       );
 
       if (roleCodes.length > 0) {
@@ -284,14 +290,17 @@ async function getLicenseWorkflowByLicenseId(
         }));
       }
 
-      // The immediate next step (by number); only actionable if it starts at the current status.
+      // The next actionable step: the first pending step that STARTS at the current
+      // status. Scanning for a status match (rather than only inspecting the single
+      // lowest-numbered pending step) keeps the workflow usable when a definition has
+      // duplicate or non-sequential step numbers — otherwise the panel dead-ends and
+      // nobody, including the eligible actor, is offered an action.
       const step = ordered.find(
-        (s) => Number(s.stepNumber ?? 0) > instanceRow.instance.currentStepNumber,
+        (s) =>
+          Number(s.stepNumber ?? 0) > instanceRow.instance.currentStepNumber &&
+          String(s.from ?? "").toUpperCase() === currentLicenseStatus.toUpperCase(),
       );
-      if (
-        step &&
-        String(step.from ?? "").toUpperCase() === currentLicenseStatus.toUpperCase()
-      ) {
+      if (step) {
         const kind = step.kind === "SIGNATURE" ? "SIGNATURE" : "TRANSITION";
         nextStep = {
           kind,

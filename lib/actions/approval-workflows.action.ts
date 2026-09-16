@@ -10,7 +10,80 @@ import { actionClient } from "@/lib/safe-action";
 import { Permissions } from "@/lib/permissions";
 import { requireActionPermission } from "@/lib/permissions-server";
 
-const workflowSchema = z.object({
+const VALID_STATUSES = ["PENDING", "REVIEW", "APPROVED", "REJECTED"];
+
+/**
+ * Structural validation of the workflow definition JSON. Without this the column
+ * accepted any string, which is how a workflow ended up with three steps all
+ * numbered 1 (making the step order ambiguous and the workflow unrunnable).
+ */
+function validateDefinition(definition: string, ctx: z.RefinementCtx) {
+  const fail = (message: string) =>
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["definition"], message });
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(definition);
+  } catch {
+    fail("Workflow definition must be valid JSON");
+    return;
+  }
+
+  const steps = (parsed as { steps?: unknown } | null)?.steps;
+  if (!Array.isArray(steps) || steps.length === 0) {
+    fail("Add at least one workflow step");
+    return;
+  }
+
+  const counts = new Map<number, number>();
+
+  steps.forEach((raw, index) => {
+    const step = (raw ?? {}) as {
+      stepNumber?: unknown;
+      kind?: unknown;
+      from?: unknown;
+      to?: unknown;
+    };
+
+    const num = Number(step.stepNumber);
+    if (!Number.isInteger(num) || num < 1) {
+      fail(`Step ${index + 1}: step number must be a whole number of 1 or more`);
+      return;
+    }
+    counts.set(num, (counts.get(num) ?? 0) + 1);
+
+    const from = String(step.from ?? "").toUpperCase();
+    if (!VALID_STATUSES.includes(from)) {
+      fail(`Step ${num}: "from" status is invalid`);
+      return;
+    }
+
+    // A signature step deliberately keeps the same status; a transition must move.
+    if (step.kind !== "SIGNATURE") {
+      const to = String(step.to ?? "").toUpperCase();
+      if (!VALID_STATUSES.includes(to)) {
+        fail(`Step ${num}: "to" status is invalid`);
+      } else if (to === from) {
+        fail(
+          `Step ${num}: a status change must move to a different status (got ${from} to ${to})`,
+        );
+      }
+    }
+  });
+
+  const duplicates = Array.from(counts.entries())
+    .filter(([, count]) => count > 1)
+    .map(([num]) => num)
+    .sort((a, b) => a - b);
+
+  if (duplicates.length > 0) {
+    fail(
+      `Duplicate step number${duplicates.length > 1 ? "s" : ""}: ${duplicates.join(", ")}. Each step needs a unique number so the order is unambiguous.`,
+    );
+  }
+}
+
+const workflowBase = z.object({
   module: z
     .string()
     .min(2, "Module is required")
@@ -24,6 +97,10 @@ const workflowSchema = z.object({
   definition: z.string().min(2),
   isActive: z.boolean().optional(),
 });
+
+const workflowSchema = workflowBase.superRefine((value, ctx) =>
+  validateDefinition(value.definition, ctx),
+);
 
 export const createApprovalWorkflow = actionClient
   .schema(workflowSchema)
@@ -70,9 +147,9 @@ export const createApprovalWorkflow = actionClient
     return { success: true as const };
   });
 
-const updateSchema = workflowSchema.extend({
-  id: z.string().uuid(),
-});
+const updateSchema = workflowBase
+  .extend({ id: z.string().uuid() })
+  .superRefine((value, ctx) => validateDefinition(value.definition, ctx));
 
 export const updateApprovalWorkflow = actionClient
   .schema(updateSchema)

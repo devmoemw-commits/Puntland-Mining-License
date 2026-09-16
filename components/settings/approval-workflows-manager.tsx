@@ -56,6 +56,21 @@ const EMPTY_STEP: WorkflowStep = {
   roleCodes: [],
 };
 
+/** First human-readable message out of a next-safe-action validationErrors object. */
+function firstValidationMessage(errors: unknown): string | null {
+  if (!errors || typeof errors !== "object") return null;
+  for (const value of Object.values(errors as Record<string, unknown>)) {
+    if (Array.isArray(value)) {
+      const msg = value.find((v) => typeof v === "string");
+      if (typeof msg === "string") return msg;
+    } else if (value && typeof value === "object" && "_errors" in value) {
+      const nested = (value as { _errors?: unknown })._errors;
+      if (Array.isArray(nested) && typeof nested[0] === "string") return nested[0];
+    }
+  }
+  return null;
+}
+
 const STATUS_OPTIONS: WorkflowStep["fromStatus"][] = [
   "PENDING",
   "REVIEW",
@@ -77,6 +92,28 @@ export function ApprovalWorkflowsManager({
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    // Step numbers drive the execution order, so they must be unique.
+    if (steps.length === 0) {
+      toast.error("Add at least one workflow step.");
+      return;
+    }
+    const stepCounts = new Map<number, number>();
+    for (const s of steps) {
+      const n = Number(s.stepNumber);
+      stepCounts.set(n, (stepCounts.get(n) ?? 0) + 1);
+    }
+    const duplicateNumbers = Array.from(stepCounts.entries())
+      .filter(([, count]) => count > 1)
+      .map(([n]) => n)
+      .sort((a, b) => a - b);
+    if (duplicateNumbers.length > 0) {
+      toast.error(
+        `Duplicate step number${duplicateNumbers.length > 1 ? "s" : ""}: ${duplicateNumbers.join(", ")}. Give each step a unique number.`,
+      );
+      return;
+    }
+
     setPending(true);
     const payload = {
       ...form,
@@ -103,7 +140,11 @@ export function ApprovalWorkflowsManager({
     setPending(false);
 
     if (result?.serverError || result?.validationErrors) {
-      toast.error("Could not save workflow.");
+      // Surface the actual validation reason (e.g. duplicate step numbers).
+      toast.error(
+        firstValidationMessage(result?.validationErrors) ??
+          "Could not save workflow.",
+      );
       return;
     }
     if (result?.data && "error" in result.data && result.data.error) {
@@ -217,7 +258,21 @@ export function ApprovalWorkflowsManager({
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => setSteps((prev) => [...prev, { ...EMPTY_STEP }])}
+                    onClick={() =>
+                      setSteps((prev) => [
+                        ...prev,
+                        {
+                          ...EMPTY_STEP,
+                          // Auto-number so added steps never collide (duplicate
+                          // step numbers make the workflow order ambiguous).
+                          stepNumber:
+                            prev.reduce(
+                              (max, s) => Math.max(max, Number(s.stepNumber) || 0),
+                              0,
+                            ) + 1,
+                        },
+                      ])
+                    }
                     disabled={pending || (!!editingId && !canEdit)}
                   >
                     Add step

@@ -645,13 +645,18 @@ export const UpdateLicenseStatus = actionClient
           };
         }
 
-        if (matchingStep.roles?.length) {
-          const actorRole = session?.user?.role ?? null;
-          if (!actorRole || !matchingStep.roles.includes(actorRole)) {
-            return {
-              error: `Role ${actorRole ?? "UNKNOWN"} is not allowed for this workflow step`,
-            };
-          }
+        // A SUPER_ADMIN may override any step; everyone else must be assigned to it.
+        // The override is recorded on the transition below so it is never silent.
+        const actorRole = session?.user?.role ?? null;
+        const stepRoles = matchingStep.roles ?? [];
+        const isAssignedActor =
+          stepRoles.length === 0 || (!!actorRole && stepRoles.includes(actorRole));
+        const isSuperAdminOverride =
+          !isAssignedActor && actorRole === "SUPER_ADMIN";
+        if (!isAssignedActor && !isSuperAdminOverride) {
+          return {
+            error: `Role ${actorRole ?? "UNKNOWN"} is not allowed for this workflow step`,
+          };
         }
 
         const [actor] = await db
@@ -677,6 +682,35 @@ export const UpdateLicenseStatus = actionClient
         }
 
         // Neon HTTP driver does not support interactive transactions.
+        // The Neon HTTP driver has no interactive transactions, so the audit rows are
+        // written BEFORE the status flip. If a later statement fails the worst case is a
+        // recorded action whose status change didn't land — never the reverse (an
+        // APPROVED licence with no recorded approval by an eligible user).
+        await db.insert(licenseWorkflowTransitions).values({
+          instanceId: workflowContext.instance.id,
+          licenseId: id,
+          stepNumber: matchingStep.stepNumber,
+          fromStatus: current.status,
+          toStatus: status,
+          actedByUserId: session?.user?.id ?? null,
+          actedByName: actor.name.trim(),
+          actedBySignatureUrl: actor?.signatureImageUrl ?? null,
+          comment: isSuperAdminOverride
+            ? [comment, "(Super Admin override of assigned workflow role)"]
+                .filter(Boolean)
+                .join(" ")
+            : comment ?? null,
+        });
+
+        await db
+          .update(licenseWorkflowInstances)
+          .set({
+            currentStepNumber: matchingStep.stepNumber,
+            isCompleted: status === "APPROVED" || status === "REJECTED",
+            updatedAt: new Date(),
+          })
+          .where(eq(licenseWorkflowInstances.id, workflowContext.instance.id));
+
         await db
           .update(licenses)
           .set({
@@ -690,27 +724,6 @@ export const UpdateLicenseStatus = actionClient
             updated_at: new Date(),
           })
           .where(eq(licenses.id, id));
-
-        await db
-          .update(licenseWorkflowInstances)
-          .set({
-            currentStepNumber: matchingStep.stepNumber,
-            isCompleted: status === "APPROVED" || status === "REJECTED",
-            updatedAt: new Date(),
-          })
-          .where(eq(licenseWorkflowInstances.id, workflowContext.instance.id));
-
-        await db.insert(licenseWorkflowTransitions).values({
-          instanceId: workflowContext.instance.id,
-          licenseId: id,
-          stepNumber: matchingStep.stepNumber,
-          fromStatus: current.status,
-          toStatus: status,
-          actedByUserId: session?.user?.id ?? null,
-          actedByName: actor.name.trim(),
-          actedBySignatureUrl: actor?.signatureImageUrl ?? null,
-          comment: comment ?? null,
-        });
       } else {
         const allowedTransitions: Record<
           "PENDING" | "REVIEW" | "APPROVED" | "REJECTED",
@@ -809,6 +822,17 @@ export const UpdateLicenseSignature = actionClient
         })
         .where(eq(licenses.id, id));
 
+      // This is a manual override outside the approval workflow (permission-gated only),
+      // so record it — otherwise a signature can appear with no trace of who applied it.
+      await logActivity({
+        action: signature ? "license.signature_override" : "license.signature_revoked",
+        entityType: "license",
+        entityId: id,
+        summary: signature
+          ? "Certificate signature applied manually (outside the approval workflow)"
+          : "Certificate signature revoked manually",
+      });
+
       const actionText = signature ? "signed" : "revoked";
       return { success: `License ${actionText} successfully` };
     } catch (error) {
@@ -855,13 +879,12 @@ export const SignWorkflowStep = actionClient
 
       // The immediate next step (by number) must be a signature step at the current status.
       const nextPending = parsedDefinition.steps.find(
-        (step) => step.stepNumber > workflowContext.instance.currentStepNumber,
+        (step) =>
+          step.stepNumber > workflowContext.instance.currentStepNumber &&
+          step.kind === "SIGNATURE" &&
+          step.from === current.status,
       );
-      if (
-        !nextPending ||
-        nextPending.kind !== "SIGNATURE" ||
-        nextPending.from !== current.status
-      ) {
+      if (!nextPending) {
         return { error: "There is no signature step to complete at this stage." };
       }
 
@@ -869,7 +892,11 @@ export const SignWorkflowStep = actionClient
       // the step, fall back to requiring the moderation permission.
       const actorRole = session.user.role ?? null;
       if (nextPending.roles?.length) {
-        if (!actorRole || !nextPending.roles.includes(actorRole)) {
+        // SUPER_ADMIN may override and sign any step.
+        const allowed =
+          (!!actorRole && nextPending.roles.includes(actorRole)) ||
+          actorRole === "SUPER_ADMIN";
+        if (!allowed) {
           return {
             error: `Role ${actorRole ?? "UNKNOWN"} is not allowed to sign this step`,
           };

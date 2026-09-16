@@ -508,13 +508,12 @@ export const SignSampleWorkflowStep = actionClient
 
       // The immediate next step (by number) must be a signature step at the current status.
       const nextPending = parsedDefinition.steps.find(
-        (step) => step.stepNumber > workflowContext.instance.currentStepNumber,
+        (step) =>
+          step.stepNumber > workflowContext.instance.currentStepNumber &&
+          step.kind === "SIGNATURE" &&
+          step.from === current.status,
       );
-      if (
-        !nextPending ||
-        nextPending.kind !== "SIGNATURE" ||
-        nextPending.from !== current.status
-      ) {
+      if (!nextPending) {
         return { error: "There is no signature step to complete at this stage." };
       }
 
