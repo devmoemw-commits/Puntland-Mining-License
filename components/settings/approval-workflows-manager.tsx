@@ -120,8 +120,10 @@ export function ApprovalWorkflowsManager({
       definition: JSON.stringify(
         {
           statuses: STATUS_OPTIONS,
-          steps: steps.map((s) => ({
-            stepNumber: s.stepNumber,
+          steps: steps.map((s, index) => ({
+            // Always renumber sequentially from position, so a definition can
+            // never be saved with duplicate or skipped step numbers.
+            stepNumber: index + 1,
             kind: s.kind,
             from: s.fromStatus,
             // A signature step never changes status, so its target equals its source.
@@ -171,13 +173,21 @@ export function ApprovalWorkflowsManager({
         }>;
       };
       if (Array.isArray(definition.steps) && definition.steps.length > 0) {
-        parsedSteps = definition.steps.map((s) => ({
-          stepNumber: Number(s.stepNumber ?? s.name ?? 1),
-          kind: (s.kind === "SIGNATURE" ? "SIGNATURE" : "TRANSITION") as WorkflowStepKind,
-          fromStatus: (s.from as WorkflowStep["fromStatus"]) ?? "PENDING",
-          toStatus: (s.to as WorkflowStep["toStatus"]) ?? "REVIEW",
-          roleCodes: Array.isArray(s.roles) ? s.roles : [],
-        }));
+        // Existing definitions may carry duplicate/legacy numbering; sort by the
+        // stored number then renumber by position so the editor is always 1..n.
+        parsedSteps = definition.steps
+          .slice()
+          .sort(
+            (a, b) =>
+              Number(a.stepNumber ?? 0) - Number(b.stepNumber ?? 0),
+          )
+          .map((s, index) => ({
+            stepNumber: index + 1,
+            kind: (s.kind === "SIGNATURE" ? "SIGNATURE" : "TRANSITION") as WorkflowStepKind,
+            fromStatus: (s.from as WorkflowStep["fromStatus"]) ?? "PENDING",
+            toStatus: (s.to as WorkflowStep["toStatus"]) ?? "REVIEW",
+            roleCodes: Array.isArray(s.roles) ? s.roles : [],
+          }));
       }
     } catch {
       parsedSteps = [{ ...EMPTY_STEP }];
@@ -265,11 +275,7 @@ export function ApprovalWorkflowsManager({
                           ...EMPTY_STEP,
                           // Auto-number so added steps never collide (duplicate
                           // step numbers make the workflow order ambiguous).
-                          stepNumber:
-                            prev.reduce(
-                              (max, s) => Math.max(max, Number(s.stepNumber) || 0),
-                              0,
-                            ) + 1,
+                          stepNumber: prev.length + 1,
                         },
                       ])
                     }
@@ -282,28 +288,56 @@ export function ApprovalWorkflowsManager({
                   {steps.map((step, index) => (
                     <div key={`${index}-${step.stepNumber}`} className="rounded border p-3 space-y-3">
                       <div className="grid md:grid-cols-2 gap-2">
-                        <Input
-                          type="number"
-                          min={1}
-                          placeholder="Step number"
-                          value={step.stepNumber}
-                          onChange={(e) =>
-                            setSteps((prev) =>
-                              prev.map((p, i) =>
-                                i === index
-                                  ? {
-                                      ...p,
-                                      stepNumber: Math.max(
-                                        1,
-                                        Number(e.target.value || 1),
-                                      ),
-                                    }
-                                  : p,
-                              ),
-                            )
-                          }
-                          disabled={pending || (!!editingId && !canEdit)}
-                        />
+                        {/* Step order is derived from position (1, 2, 3 ...) so numbers
+                            can never collide or skip. Reorder with the arrows below. */}
+                        <div className="flex h-9 items-center gap-2">
+                          <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
+                            {index + 1}
+                          </span>
+                          <span className="text-sm text-muted-foreground">
+                            Step {index + 1} of {steps.length}
+                          </span>
+                          <div className="ml-auto flex gap-1">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-7 px-2"
+                              aria-label="Move step up"
+                              disabled={index === 0 || pending || (!!editingId && !canEdit)}
+                              onClick={() =>
+                                setSteps((prev) => {
+                                  const next = [...prev];
+                                  [next[index - 1], next[index]] = [next[index], next[index - 1]];
+                                  return next.map((s, i) => ({ ...s, stepNumber: i + 1 }));
+                                })
+                              }
+                            >
+                              ↑
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-7 px-2"
+                              aria-label="Move step down"
+                              disabled={
+                                index === steps.length - 1 ||
+                                pending ||
+                                (!!editingId && !canEdit)
+                              }
+                              onClick={() =>
+                                setSteps((prev) => {
+                                  const next = [...prev];
+                                  [next[index], next[index + 1]] = [next[index + 1], next[index]];
+                                  return next.map((s, i) => ({ ...s, stepNumber: i + 1 }));
+                                })
+                              }
+                            >
+                              ↓
+                            </Button>
+                          </div>
+                        </div>
                         <select
                           className="h-9 rounded-md border bg-background px-3 text-sm"
                           value={step.kind}

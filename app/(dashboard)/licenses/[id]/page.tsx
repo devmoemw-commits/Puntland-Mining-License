@@ -52,6 +52,10 @@ type LicenseWorkflowView = {
     actedByName: string | null;
     actedByRole: string | null;
     actedBySignatureUrl: string | null;
+    /** Roles the executed step was assigned to (from the workflow definition). */
+    stepRoles: string[];
+    /** True when the actor's role was not among the step's assigned roles. */
+    isOverride: boolean;
   }[];
 } | null;
 
@@ -211,6 +215,9 @@ async function getLicenseWorkflowByLicenseId(
     toStatus: string;
     allowedRoles: string[];
   } | null = null;
+  // stepNumber -> roles assigned to it, so a recorded transition can be matched back
+  // to the step (and therefore the role card) it actually executed.
+  const stepRolesByNumber = new Map<number, string[]>();
   let hasSignatureStep = false;
   // Default true so unparseable/legacy definitions never block certificate printing.
   let allStepsCompleted = true;
@@ -233,6 +240,17 @@ async function getLicenseWorkflowByLicenseId(
         .slice()
         .sort((a, b) => Number(a.stepNumber ?? 0) - Number(b.stepNumber ?? 0));
       hasSignatureStep = ordered.some((s) => s.kind === "SIGNATURE");
+      for (const s of ordered) {
+        const num = Number(s.stepNumber ?? 0);
+        const stepRoles = Array.isArray(s.roles)
+          ? s.roles.map((r) => String(r).trim().toUpperCase()).filter(Boolean)
+          : [];
+        // Union, so legacy definitions with duplicate step numbers don't lose roles.
+        stepRolesByNumber.set(
+          num,
+          Array.from(new Set([...(stepRolesByNumber.get(num) ?? []), ...stepRoles])),
+        );
+      }
       const maxStepNumber = ordered.reduce(
         (max, s) => Math.max(max, Number(s.stepNumber ?? 0)),
         0,
@@ -332,23 +350,33 @@ async function getLicenseWorkflowByLicenseId(
     isCompleted: instanceRow.instance.isCompleted || isLegacyFrozen,
     nextStep,
     approvalRoles,
-    transitions: transitionRows.map((row) => ({
-      id: row.transition.id,
-      stepNumber: row.transition.stepNumber,
-      fromStatus: row.transition.fromStatus,
-      toStatus: row.transition.toStatus,
-      comment: row.transition.comment ?? null,
-      createdAt: toIso(row.transition.createdAt),
-      actedByName:
-        row.transition.actedByName ??
-        row.actorName ??
-        null,
-      actedByRole: row.actorRole ?? null,
-      actedBySignatureUrl:
-        row.transition.actedBySignatureUrl ??
-        row.actorSignatureUrl ??
-        null,
-    })),
+    transitions: transitionRows.map((row) => {
+      const stepRoles = stepRolesByNumber.get(row.transition.stepNumber) ?? [];
+      const actedByRole = row.actorRole ?? null;
+      return {
+        id: row.transition.id,
+        stepNumber: row.transition.stepNumber,
+        fromStatus: row.transition.fromStatus,
+        toStatus: row.transition.toStatus,
+        comment: row.transition.comment ?? null,
+        createdAt: toIso(row.transition.createdAt),
+        actedByName:
+          row.transition.actedByName ??
+          row.actorName ??
+          null,
+        actedByRole,
+        actedBySignatureUrl:
+          row.transition.actedBySignatureUrl ??
+          row.actorSignatureUrl ??
+          null,
+        stepRoles,
+        // The step was executed by someone outside its assigned roles (a Super Admin override).
+        isOverride:
+          stepRoles.length > 0 &&
+          !!actedByRole &&
+          !stepRoles.includes(actedByRole.toUpperCase()),
+      };
+    }),
   };
 }
 

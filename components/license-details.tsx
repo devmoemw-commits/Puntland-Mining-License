@@ -95,6 +95,8 @@ export default function LicenseDetails({
       actedByName: string | null;
       actedByRole: string | null;
       actedBySignatureUrl: string | null;
+      stepRoles?: string[];
+      isOverride?: boolean;
     }[];
   } | null;
 }) {
@@ -1086,9 +1088,17 @@ export default function LicenseDetails({
 
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {approvalRoles.map((role) => {
-                  const transition = workflow?.transitions.find(
-                    (item) => item.actedByRole?.toUpperCase() === role.code,
-                  );
+                  // Prefer the transition whose STEP was assigned to this role, so an
+                  // overridden step is shown on the role that owned it (rather than the
+                  // owner sitting at "Pending" while a stray overrider card appears).
+                  const transition =
+                    workflow?.transitions.find((item) =>
+                      item.stepRoles?.includes(role.code),
+                    ) ??
+                    workflow?.transitions.find(
+                      (item) => item.actedByRole?.toUpperCase() === role.code,
+                    );
+                  const isOverriddenStep = Boolean(transition?.isOverride);
                   const actorName = transition?.actedByName ?? "No action taker";
                   const actionStatus = transition?.toStatus?.toUpperCase();
                   // A signature step records the same from/to status (no status change).
@@ -1115,14 +1125,21 @@ export default function LicenseDetails({
                           : isSigned
                             ? "Action Taken"
                             : "Pending";
-                  const isCurrentRole =
-                    (session?.user?.role ?? "").toUpperCase() === role.code;
-                  const canCurrentRoleAct =
-                    isCurrentRole &&
-                    !workflow?.isCompleted &&
+                  const viewerRole = (session?.user?.role ?? "").toUpperCase();
+                  const isCurrentRole = viewerRole === role.code;
+                  // A SUPER_ADMIN may override any step, so they get the actions on
+                  // whichever card is next to act. The server records the result as an
+                  // override, so it is never a silent approval.
+                  const isSuperAdminViewer = viewerRole === "SUPER_ADMIN";
+                  const roleIsNextActor =
                     !!workflow?.nextStep &&
                     (workflow.nextStep.allowedRoles.length === 0 ||
                       workflow.nextStep.allowedRoles.includes(role.code));
+                  const canCurrentRoleAct =
+                    (isCurrentRole || isSuperAdminViewer) &&
+                    !workflow?.isCompleted &&
+                    roleIsNextActor;
+                  const isOverrideAction = !isCurrentRole && isSuperAdminViewer;
                   const isSignatureStep = workflow?.nextStep?.kind === "SIGNATURE";
                   const nextStatus = workflow?.nextStep?.toStatus?.toUpperCase();
                   const requiresReviewComment = !isSignatureStep && nextStatus === "REVIEW";
@@ -1158,6 +1175,14 @@ export default function LicenseDetails({
                         >
                           {actionLabel}
                         </Badge>
+                        {isOverriddenStep ? (
+                          <Badge
+                            className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] text-amber-700 hover:bg-amber-100 dark:bg-amber-900 dark:text-amber-300"
+                            variant="secondary"
+                          >
+                            Overridden
+                          </Badge>
+                        ) : null}
                       </div>
                       <div className="flex min-h-10 items-center justify-start rounded-lg border border-dashed border-slate-200 bg-white px-3 py-1 dark:border-slate-700 dark:bg-slate-800/40">
                         {actorSignature ? (
@@ -1175,12 +1200,25 @@ export default function LicenseDetails({
                       <p className="mt-3 text-sm font-medium text-slate-800 dark:text-slate-100">
                         {transition ? actorName : "No action taken"}
                       </p>
+                      {isOverriddenStep ? (
+                        <p className="text-xs font-medium text-amber-600 dark:text-amber-400">
+                          Overridden by{" "}
+                          {(transition?.actedByRole ?? "SUPER ADMIN").replaceAll("_", " ")}
+                          {" "}— not the assigned {role.label}
+                        </p>
+                      ) : null}
                       <p className="text-xs text-slate-500">
                         {transition ? formatDate(transition.createdAt, "dd MMMM, yyyy") : "--"}
                       </p>
 
                       {canCurrentRoleAct ? (
                         <div className="mt-4 space-y-2 border-t border-slate-200/70 pt-3 dark:border-slate-800">
+                          {isOverrideAction ? (
+                            <p className="text-xs font-medium text-amber-600 dark:text-amber-400">
+                              Acting as Super Admin — recorded as an override of the{" "}
+                              {role.label} step.
+                            </p>
+                          ) : null}
                           {isSignatureStep ? (
                             <div className="flex items-center justify-start gap-2">
                               <Button
