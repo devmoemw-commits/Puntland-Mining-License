@@ -696,7 +696,7 @@ export const UpdateLicenseStatus = actionClient
           actedByName: actor.name.trim(),
           actedBySignatureUrl: actor?.signatureImageUrl ?? null,
           comment: isSuperAdminOverride
-            ? [comment, "(Super Admin override of assigned workflow role)"]
+            ? [comment, "(Acted by Super Admin on behalf of the assigned role)"]
                 .filter(Boolean)
                 .join(" ")
             : comment ?? null,

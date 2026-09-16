@@ -1180,7 +1180,7 @@ export default function LicenseDetails({
                             className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] text-amber-700 hover:bg-amber-100 dark:bg-amber-900 dark:text-amber-300"
                             variant="secondary"
                           >
-                            Overridden
+                            Acting
                           </Badge>
                         ) : null}
                       </div>
@@ -1202,9 +1202,8 @@ export default function LicenseDetails({
                       </p>
                       {isOverriddenStep ? (
                         <p className="text-xs font-medium text-amber-600 dark:text-amber-400">
-                          Overridden by{" "}
                           {(transition?.actedByRole ?? "SUPER ADMIN").replaceAll("_", " ")}
-                          {" "}— not the assigned {role.label}
+                          {" "}acted on behalf of the {role.label}
                         </p>
                       ) : null}
                       <p className="text-xs text-slate-500">
@@ -1215,8 +1214,8 @@ export default function LicenseDetails({
                         <div className="mt-4 space-y-2 border-t border-slate-200/70 pt-3 dark:border-slate-800">
                           {isOverrideAction ? (
                             <p className="text-xs font-medium text-amber-600 dark:text-amber-400">
-                              Acting as Super Admin — recorded as an override of the{" "}
-                              {role.label} step.
+                              You are acting on behalf of the {role.label}. This will be
+                              recorded against this step with your name.
                             </p>
                           ) : null}
                           {isSignatureStep ? (
