@@ -22,7 +22,14 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Download, SlidersHorizontal } from "lucide-react"
+import {
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  Download,
+  SlidersHorizontal,
+} from "lucide-react"
 import { DataTableFacetedFilter } from "./faceted-filter"
 import { DataTableDateFilter } from "./date-range-filter"
 import type { Table as ReactTable } from "@tanstack/react-table"
@@ -95,6 +102,14 @@ export function DataTable<TData, TValue>({ columns, data }: DataTableProps<TData
   )
     .sort((a, b) => a.localeCompare(b))
     .map((d) => ({ label: d, value: d }))
+
+  // Pagination counters for the footer.
+  const { pageIndex, pageSize } = table.getState().pagination
+  const totalRows = table.getFilteredRowModel().rows.length
+  const pageCount = table.getPageCount()
+  const selectedCount = table.getFilteredSelectedRowModel().rows.length
+  const firstRow = totalRows === 0 ? 0 : pageIndex * pageSize + 1
+  const lastRow = Math.min((pageIndex + 1) * pageSize, totalRows)
 
   return (
     <div>
@@ -223,24 +238,79 @@ export function DataTable<TData, TValue>({ columns, data }: DataTableProps<TData
           </TableBody>
         </Table>
       </div>
-      <div className="flex items-center">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <div className="flex-1 text-sm text-muted-foreground">
-          {table.getFilteredSelectedRowModel().rows.length} of {table.getFilteredRowModel().rows.length} row(s)
-          selected.
+          {selectedCount > 0 ? `${selectedCount} of ${totalRows} row(s) selected — ` : ""}
+          {totalRows === 0
+            ? "No results"
+            : `Showing ${firstRow}–${lastRow} of ${totalRows}`}
         </div>
 
-        <div className="flex items-center justify-end space-x-2 py-4">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
-          >
-            Previous
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>
-            Next
-          </Button>
+        <div className="flex items-center gap-4 py-4">
+          <div className="flex items-center gap-2">
+            <span className="whitespace-nowrap text-sm text-muted-foreground">
+              Rows per page
+            </span>
+            <select
+              aria-label="Rows per page"
+              className="h-8 rounded-md border border-input bg-background px-2 text-sm"
+              value={pageSize}
+              onChange={(e) => table.setPageSize(Number(e.target.value))}
+            >
+              {[10, 20, 30, 50, 100].map((size) => (
+                <option key={size} value={size}>
+                  {size}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <span className="whitespace-nowrap text-sm text-muted-foreground">
+            Page {pageCount === 0 ? 0 : pageIndex + 1} of {pageCount}
+          </span>
+
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              aria-label="First page"
+              onClick={() => table.setPageIndex(0)}
+              disabled={!table.getCanPreviousPage()}
+            >
+              <ChevronsLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              aria-label="Previous page"
+              onClick={() => table.previousPage()}
+              disabled={!table.getCanPreviousPage()}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              aria-label="Next page"
+              onClick={() => table.nextPage()}
+              disabled={!table.getCanNextPage()}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              aria-label="Last page"
+              onClick={() => table.setPageIndex(table.getPageCount() - 1)}
+              disabled={!table.getCanNextPage()}
+            >
+              <ChevronsRight className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
     </div>
