@@ -93,6 +93,24 @@ export const columns: ColumnDef<License>[] = [
     cell: ({ row }) => <div>{row.getValue("company_name")}</div>,
   },
   {
+    id: "collector",
+    header: sortableHeader("Collector"),
+    // Company-side contact on the application — the person who collects the certificate.
+    accessorFn: (row) => row.full_name ?? "",
+    cell: ({ row }) => {
+      const name = row.original.full_name
+      const phone = row.original.mobile_number
+      return (
+        <div className="min-w-36">
+          <div className="font-medium">{name || "—"}</div>
+          {phone ? (
+            <div className="text-xs normal-case text-muted-foreground">{phone}</div>
+          ) : null}
+        </div>
+      )
+    },
+  },
+  {
     accessorKey: "license_area",
     header: "License Area",
     cell: ({ row }) => <div>{row.getValue("license_area")}</div>,
@@ -135,6 +153,24 @@ export const columns: ColumnDef<License>[] = [
     filterFn: (row, columnId, filterValue) =>
       (filterValue as string[]).includes(row.getValue(columnId) as string),
     enableColumnFilter: true,
+  },
+  {
+    id: "amount",
+    header: sortableHeader("Amount"),
+    // Numeric accessor so sorting is by value, not by formatted text.
+    accessorFn: (row) =>
+      row.is_free ? 0 : Number(row.calculated_fee ?? 0) || 0,
+    cell: ({ row }) => {
+      const isFree = Boolean(row.original.is_free)
+      const amount = Number(row.original.calculated_fee ?? 0) || 0
+      return isFree || amount <= 0 ? (
+        <span className="font-medium text-emerald-600">Free</span>
+      ) : (
+        <span className="whitespace-nowrap font-medium">
+          ${amount.toLocaleString()}
+        </span>
+      )
+    },
   },
   {
     id: "created",
