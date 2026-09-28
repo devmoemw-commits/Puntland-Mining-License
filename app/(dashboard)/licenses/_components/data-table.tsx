@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Download, SlidersHorizontal } from "lucide-react"
 import { DataTableFacetedFilter } from "./faceted-filter"
+import { DataTableDateFilter } from "./date-range-filter"
 import type { Table as ReactTable } from "@tanstack/react-table"
 
 interface DataTableProps<TData, TValue> {
@@ -129,6 +130,19 @@ export function DataTable<TData, TValue>({ columns, data }: DataTableProps<TData
                 { label: "Expired", value: "expired" },
               ]}
             />
+            {table.getColumn("created") && (
+              <DataTableDateFilter column={table.getColumn("created")} title="Date" />
+            )}
+            {table.getColumn("pricing") && (
+              <DataTableFacetedFilter
+                column={table.getColumn("pricing")}
+                title="Pricing"
+                options={[
+                  { label: "Paid", value: "Paid" },
+                  { label: "Free", value: "Free" },
+                ]}
+              />
+            )}
             {table.getColumn("license_area") && (
               <DataTableFacetedFilter column={table.getColumn("license_area")} title="Area" options={areaOptions} />
             )}

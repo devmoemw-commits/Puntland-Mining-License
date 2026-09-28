@@ -3,6 +3,7 @@
 import type { Column, ColumnDef } from "@tanstack/react-table"
 import { ArrowUpDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { ValidityStatusBadge } from "./_components/validity-status-badge"
 import { LicenseStatusBadge } from "./_components/license-status-badge"
@@ -45,6 +46,8 @@ export type License = {
   license_type: string
   license_category: string
   calculated_fee: string
+  /** True when the licence was created as Free (no fee charged). */
+  is_free?: boolean
   license_area: string
   created_at: string
   updated_at: string
@@ -109,6 +112,55 @@ export const columns: ColumnDef<License>[] = [
     accessorKey: "license_category",
     header: sortableHeader("Category"),
     cell: ({ row }) => <div>{row.getValue("license_category")}</div>,
+  },
+  {
+    id: "pricing",
+    header: "Pricing",
+    // Derived so the column is both sortable and filterable on a plain string.
+    accessorFn: (row) => (row.is_free ? "Free" : "Paid"),
+    cell: ({ row }) => {
+      const isFree = Boolean(row.original.is_free)
+      return (
+        <Badge
+          className={
+            isFree
+              ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900 dark:text-emerald-300"
+              : "bg-blue-100 text-blue-700 hover:bg-blue-100 dark:bg-blue-900 dark:text-blue-300"
+          }
+        >
+          {isFree ? "Free" : "Paid"}
+        </Badge>
+      )
+    },
+    filterFn: (row, columnId, filterValue) =>
+      (filterValue as string[]).includes(row.getValue(columnId) as string),
+    enableColumnFilter: true,
+  },
+  {
+    id: "created",
+    header: sortableHeader("Created"),
+    accessorFn: (row) => row.created_at,
+    cell: ({ row }) => {
+      const raw = row.getValue("created") as string
+      const d = new Date(raw)
+      return (
+        <div className="whitespace-nowrap">
+          {Number.isNaN(d.getTime()) ? "—" : d.toLocaleDateString()}
+        </div>
+      )
+    },
+    // Bounds are absolute ISO strings resolved by the filter control, so this
+    // stays a plain comparison (no per-row "what is today" work).
+    filterFn: (row, columnId, filterValue) => {
+      const range = filterValue as { from?: string; to?: string } | undefined
+      if (!range || (!range.from && !range.to)) return true
+      const value = new Date(row.getValue(columnId) as string).getTime()
+      if (Number.isNaN(value)) return false
+      if (range.from && value < new Date(range.from).getTime()) return false
+      if (range.to && value > new Date(range.to).getTime()) return false
+      return true
+    },
+    enableColumnFilter: true,
   },
   {
     accessorKey: "status",
