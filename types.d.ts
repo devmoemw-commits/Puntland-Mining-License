@@ -107,6 +107,8 @@ export interface License {
   license_type: string
   license_category: string
   calculated_fee: string
+  is_free?: boolean
+  amount_paid?: string
   license_area: string[]
   created_at: string
   updated_at: string

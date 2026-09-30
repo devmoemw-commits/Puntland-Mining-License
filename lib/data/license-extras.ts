@@ -1,5 +1,5 @@
 import { db } from "@/database/drizzle";
-import { inspectionReports, licenseRenewals } from "@/database/schema";
+import { inspectionReports, licensePayments, licenseRenewals } from "@/database/schema";
 import { desc, eq } from "drizzle-orm";
 
 export type InspectionReportRow = {
@@ -27,6 +27,36 @@ export type RenewalRow = {
 
 const iso = (v: Date | string | null | undefined): string | null =>
   v == null ? null : v instanceof Date ? v.toISOString() : String(v);
+
+export type LicensePaymentRow = {
+  id: string;
+  amount: string;
+  paidAt: string | null;
+  receiptNumber: string | null;
+  note: string | null;
+  createdByName: string | null;
+  createdAt: string;
+};
+
+/** All collections recorded against a licence, newest first. */
+export async function listLicensePayments(
+  licenseId: string,
+): Promise<LicensePaymentRow[]> {
+  const rows = await db
+    .select()
+    .from(licensePayments)
+    .where(eq(licensePayments.licenseId, licenseId))
+    .orderBy(desc(licensePayments.paidAt));
+  return rows.map((r) => ({
+    id: r.id,
+    amount: String(r.amount ?? "0"),
+    paidAt: iso(r.paidAt),
+    receiptNumber: r.receiptNumber,
+    note: r.note,
+    createdByName: r.createdByName,
+    createdAt: iso(r.createdAt) ?? "",
+  }));
+}
 
 export async function listInspectionReports(
   licenseId: string,

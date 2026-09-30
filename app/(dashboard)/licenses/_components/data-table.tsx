@@ -154,13 +154,15 @@ export function DataTable<TData, TValue>({ columns, data }: DataTableProps<TData
             {table.getColumn("created") && (
               <DataTableDateFilter column={table.getColumn("created")} title="Date" />
             )}
-            {table.getColumn("pricing") && (
+            {table.getColumn("payment") && (
               <DataTableFacetedFilter
-                column={table.getColumn("pricing")}
-                title="Pricing"
+                column={table.getColumn("payment")}
+                title="Payment"
                 options={[
-                  { label: "Paid", value: "Paid" },
                   { label: "Free", value: "Free" },
+                  { label: "Unpaid", value: "Unpaid" },
+                  { label: "Partially Paid", value: "Partially Paid" },
+                  { label: "Paid", value: "Paid" },
                 ]}
               />
             )}
@@ -360,8 +362,10 @@ const COLUMN_LABELS: Record<string, string> = {
   license_area: "License Area",
   district: "District",
   license_category: "Category",
-  pricing: "Pricing",
+  payment: "Payment",
   amount: "Amount (USD)",
+  amount_paid: "Paid (USD)",
+  balance: "Balance (USD)",
   created: "Created",
   status: "Approval Status",
   validity: "Expiry Status",

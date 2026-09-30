@@ -11,6 +11,7 @@ import {
   History,
   Plus,
   ScrollText,
+  Wallet,
 } from "lucide-react";
 
 import LicenseDetails from "@/components/license-details";
@@ -32,9 +33,18 @@ import { Permissions } from "@/lib/permissions";
 import {
   CreateInspectionReport,
   CreateLicenseRenewal,
+  RecordLicensePayment,
 } from "@/lib/actions/license-extras.action";
+import {
+  PAYMENT_STATUS_CLASSES,
+  PAYMENT_STATUS_LABELS,
+  formatMoney,
+  getBalance,
+  getPaymentStatus,
+} from "@/lib/payment-status";
 import type {
   InspectionReportRow,
+  LicensePaymentRow,
   RenewalRow,
 } from "@/lib/data/license-extras";
 import type { ActivityLogRow } from "@/lib/data/activity-logs";
@@ -45,6 +55,7 @@ type LicenseDetailsProps = React.ComponentProps<typeof LicenseDetails>;
 interface Props extends LicenseDetailsProps {
   inspections: InspectionReportRow[];
   renewals: RenewalRow[];
+  payments: LicensePaymentRow[];
   activity: ActivityLogRow[];
 }
 
@@ -57,6 +68,7 @@ function fmtDate(v: string | null): string {
 export function LicenseDetailTabs({
   inspections,
   renewals,
+  payments,
   activity,
   ...detailsProps
 }: Props) {
@@ -65,6 +77,8 @@ export function LicenseDetailTabs({
   const codes = session?.user?.permissionCodes ?? [];
   const canReview = codes.includes(Permissions.LICENSE_REVIEW);
   const canModerate = codes.includes(Permissions.LICENSE_MODERATE);
+  // Recording a payment only needs licence access, not admin rights.
+  const canRecordPayment = codes.includes(Permissions.LICENSE_REGISTER);
 
   const licenseId = detailsProps.license.id;
 
@@ -84,6 +98,12 @@ export function LicenseDetailTabs({
           <History className="mr-1.5 h-4 w-4" /> Renewal History
           {renewals.length ? (
             <Badge variant="secondary" className="ml-1.5">{renewals.length}</Badge>
+          ) : null}
+        </TabsTrigger>
+        <TabsTrigger value="payments">
+          <Wallet className="mr-1.5 h-4 w-4" /> Payments
+          {payments.length ? (
+            <Badge variant="secondary" className="ml-1.5">{payments.length}</Badge>
           ) : null}
         </TabsTrigger>
         <TabsTrigger value="activity">
@@ -111,6 +131,18 @@ export function LicenseDetailTabs({
           <RenewalForm licenseId={licenseId} onDone={() => router.refresh()} />
         )}
         <RenewalList rows={renewals} />
+      </TabsContent>
+
+      <TabsContent value="payments" className="mt-4">
+        <PaymentsPanel
+          licenseId={licenseId}
+          isFree={Boolean(detailsProps.license.is_free)}
+          fee={detailsProps.license.calculated_fee}
+          paid={detailsProps.license.amount_paid}
+          payments={payments}
+          canRecord={canRecordPayment}
+          onDone={() => router.refresh()}
+        />
       </TabsContent>
 
       <TabsContent value="activity" className="mt-4">
@@ -421,6 +453,218 @@ function RenewalList({ rows }: { rows: RenewalRow[] }) {
           ))}
         </TableBody>
       </Table>
+    </div>
+  );
+}
+
+/* --------------------------------- Payments -------------------------------- */
+
+function PaymentsPanel({
+  licenseId,
+  isFree,
+  fee,
+  paid,
+  payments,
+  canRecord,
+  onDone,
+}: {
+  licenseId: string;
+  isFree: boolean;
+  fee?: string;
+  paid?: string;
+  payments: LicensePaymentRow[];
+  canRecord: boolean;
+  onDone: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    amount: "",
+    paidAt: "",
+    receiptNumber: "",
+    note: "",
+  });
+
+  const status = getPaymentStatus({ isFree, fee, paid });
+  const balance = getBalance(fee, paid);
+
+  const submit = async () => {
+    if (!form.amount.trim() || Number(form.amount) <= 0) {
+      toast.error("Enter an amount greater than zero");
+      return;
+    }
+    if (Number(form.amount) > balance + 0.005) {
+      toast.error(`Amount exceeds the outstanding balance of ${formatMoney(balance)}`);
+      return;
+    }
+    setSaving(true);
+    const res = await RecordLicensePayment({
+      licenseId,
+      amount: form.amount,
+      paidAt: form.paidAt || undefined,
+      receiptNumber: form.receiptNumber || undefined,
+      note: form.note || undefined,
+    });
+    setSaving(false);
+    if (res?.data?.error) {
+      toast.error(String(res.data.error));
+      return;
+    }
+    toast.success(String(res?.data?.success ?? "Payment recorded"));
+    setForm({ amount: "", paidAt: "", receiptNumber: "", note: "" });
+    setOpen(false);
+    onDone();
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Summary */}
+      <div className="grid gap-3 sm:grid-cols-4">
+        <div className="rounded-lg border p-3">
+          <p className="text-xs text-muted-foreground">Status</p>
+          <Badge className={`mt-1 ${PAYMENT_STATUS_CLASSES[status]}`}>
+            {PAYMENT_STATUS_LABELS[status]}
+          </Badge>
+        </div>
+        <div className="rounded-lg border p-3">
+          <p className="text-xs text-muted-foreground">Total fee</p>
+          <p className="mt-1 text-lg font-semibold">
+            {isFree ? "Free" : formatMoney(fee)}
+          </p>
+        </div>
+        <div className="rounded-lg border p-3">
+          <p className="text-xs text-muted-foreground">Collected</p>
+          <p className="mt-1 text-lg font-semibold text-emerald-600">
+            {formatMoney(paid)}
+          </p>
+        </div>
+        <div className="rounded-lg border p-3">
+          <p className="text-xs text-muted-foreground">Outstanding</p>
+          <p
+            className={`mt-1 text-lg font-semibold ${
+              balance > 0 ? "text-amber-600" : "text-muted-foreground"
+            }`}
+          >
+            {formatMoney(balance)}
+          </p>
+        </div>
+      </div>
+
+      {isFree ? (
+        <p className="text-sm text-muted-foreground">
+          This licence is Free — no payment is due.
+        </p>
+      ) : !canRecord ? null : balance <= 0 ? (
+        <p className="text-sm text-muted-foreground">
+          Fully paid — nothing outstanding.
+        </p>
+      ) : (
+        <div className="space-y-3 rounded-lg border p-4">
+          {/* One step: type an amount and record it. Details are optional. */}
+          <div className="flex flex-wrap items-end gap-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="pay-amount">Amount to record</Label>
+              <Input
+                id="pay-amount"
+                type="number"
+                min="0"
+                step="0.01"
+                className="w-40"
+                placeholder={String(balance)}
+                value={form.amount}
+                onChange={(e) => setForm({ ...form, amount: e.target.value })}
+              />
+            </div>
+            <Button onClick={submit} disabled={saving} size="sm">
+              {saving ? "Saving…" : "Record payment"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setForm({ ...form, amount: String(balance) })}
+            >
+              Pay full balance ({formatMoney(balance)})
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setOpen(!open)}
+            >
+              {open ? "Hide details" : "Add details"}
+            </Button>
+          </div>
+
+          {open ? (
+            <div className="grid gap-4 border-t pt-3 sm:grid-cols-3">
+              <div className="space-y-1.5">
+                <Label>Payment date</Label>
+                <Input
+                  type="date"
+                  value={form.paidAt}
+                  onChange={(e) => setForm({ ...form, paidAt: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Receipt number</Label>
+                <Input
+                  value={form.receiptNumber}
+                  onChange={(e) =>
+                    setForm({ ...form, receiptNumber: e.target.value })
+                  }
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Note</Label>
+                <Input
+                  value={form.note}
+                  onChange={(e) => setForm({ ...form, note: e.target.value })}
+                  placeholder="e.g. cash at counter"
+                />
+              </div>
+            </div>
+          ) : null}
+        </div>
+      )}
+
+      {/* History */}
+      {payments.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No payments recorded yet.</p>
+      ) : (
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead className="text-right">Amount</TableHead>
+                <TableHead>Receipt</TableHead>
+                <TableHead>Note</TableHead>
+                <TableHead>Recorded by</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {payments.map((p) => (
+                <TableRow key={p.id}>
+                  <TableCell className="whitespace-nowrap">
+                    {fmtDate(p.paidAt)}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap text-right font-medium">
+                    {formatMoney(p.amount)}
+                  </TableCell>
+                  <TableCell>{p.receiptNumber ?? "—"}</TableCell>
+                  <TableCell className="max-w-xs whitespace-pre-wrap">
+                    {p.note ?? "—"}
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {p.createdByName ?? "—"}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
     </div>
   );
 }

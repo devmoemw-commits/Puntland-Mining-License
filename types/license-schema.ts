@@ -286,6 +286,19 @@ export const setLicenseCoordinatesSchema = z.object({
 })
 export type SetLicenseCoordinatesInput = z.infer<typeof setLicenseCoordinatesSchema>
 
+// Record a payment collected against a licence (supports instalments).
+export const recordPaymentSchema = z.object({
+  licenseId: z.string().uuid("Invalid license ID"),
+  amount: z
+    .string()
+    .min(1, "Amount is required")
+    .refine((v) => Number(v) > 0, { message: "Amount must be greater than zero" }),
+  paidAt: z.string().optional(),
+  receiptNumber: z.string().max(255).optional(),
+  note: z.string().max(2000).optional(),
+})
+export type RecordPaymentInput = z.infer<typeof recordPaymentSchema>
+
 // Inspection report creation (Phase 5)
 export const createInspectionReportSchema = z.object({
   licenseId: z.string().uuid("Invalid license ID"),

@@ -9,6 +9,13 @@ import { ValidityStatusBadge } from "./_components/validity-status-badge"
 import { LicenseStatusBadge } from "./_components/license-status-badge"
 import { LicenseActionsCell } from "./_components/license-actions-cell"
 import type { LicenseStatus } from "@/types/license-schema"
+import {
+  PAYMENT_STATUS_CLASSES,
+  PAYMENT_STATUS_LABELS,
+  formatMoney,
+  getBalance,
+  getPaymentStatus,
+} from "@/lib/payment-status"
 
 // Clickable header that toggles column sorting (asc → desc → none).
 function sortableHeader(label: string) {
@@ -48,6 +55,8 @@ export type License = {
   calculated_fee: string
   /** True when the licence was created as Free (no fee charged). */
   is_free?: boolean
+  /** Running total collected so far; drives Partially Paid / Paid. */
+  amount_paid?: string
   license_area: string
   created_at: string
   updated_at: string
@@ -132,21 +141,26 @@ export const columns: ColumnDef<License>[] = [
     cell: ({ row }) => <div>{row.getValue("license_category")}</div>,
   },
   {
-    id: "pricing",
-    header: "Pricing",
-    // Derived so the column is both sortable and filterable on a plain string.
-    accessorFn: (row) => (row.is_free ? "Free" : "Paid"),
+    id: "payment",
+    header: "Payment",
+    // Derived from fee vs collected, so a part-payment reads "Partially Paid".
+    accessorFn: (row) =>
+      PAYMENT_STATUS_LABELS[
+        getPaymentStatus({
+          isFree: row.is_free,
+          fee: row.calculated_fee,
+          paid: row.amount_paid,
+        })
+      ],
     cell: ({ row }) => {
-      const isFree = Boolean(row.original.is_free)
+      const status = getPaymentStatus({
+        isFree: row.original.is_free,
+        fee: row.original.calculated_fee,
+        paid: row.original.amount_paid,
+      })
       return (
-        <Badge
-          className={
-            isFree
-              ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900 dark:text-emerald-300"
-              : "bg-blue-100 text-blue-700 hover:bg-blue-100 dark:bg-blue-900 dark:text-blue-300"
-          }
-        >
-          {isFree ? "Free" : "Paid"}
+        <Badge className={PAYMENT_STATUS_CLASSES[status]}>
+          {PAYMENT_STATUS_LABELS[status]}
         </Badge>
       )
     },
@@ -161,14 +175,25 @@ export const columns: ColumnDef<License>[] = [
     accessorFn: (row) =>
       row.is_free ? 0 : Number(row.calculated_fee ?? 0) || 0,
     cell: ({ row }) => {
-      const isFree = Boolean(row.original.is_free)
-      const amount = Number(row.original.calculated_fee ?? 0) || 0
-      return isFree || amount <= 0 ? (
-        <span className="font-medium text-emerald-600">Free</span>
-      ) : (
-        <span className="whitespace-nowrap font-medium">
-          ${amount.toLocaleString()}
-        </span>
+      const lic = row.original
+      const status = getPaymentStatus({
+        isFree: lic.is_free,
+        fee: lic.calculated_fee,
+        paid: lic.amount_paid,
+      })
+      if (status === "FREE") {
+        return <span className="font-medium text-emerald-600">Free</span>
+      }
+      const balance = getBalance(lic.calculated_fee, lic.amount_paid)
+      return (
+        <div className="whitespace-nowrap">
+          <div className="font-medium">{formatMoney(lic.calculated_fee)}</div>
+          {status !== "PAID" ? (
+            <div className="text-xs normal-case text-amber-600">
+              paid {formatMoney(lic.amount_paid)} · due {formatMoney(balance)}
+            </div>
+          ) : null}
+        </div>
       )
     },
   },

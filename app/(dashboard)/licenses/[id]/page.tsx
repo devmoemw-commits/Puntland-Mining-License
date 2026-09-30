@@ -14,7 +14,11 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import type { License, Location } from "@/types";
 import { LicenseDetailTabs } from "./_components/license-detail-tabs";
 import { getCertificateAssets } from "@/lib/data/get-system-config";
-import { listInspectionReports, listRenewals } from "@/lib/data/license-extras";
+import {
+  listInspectionReports,
+  listLicensePayments,
+  listRenewals,
+} from "@/lib/data/license-extras";
 import { listActivityForEntity } from "@/lib/data/activity-logs";
 
 interface Props {
@@ -122,6 +126,8 @@ async function getLicenseById(id: string): Promise<License | null> {
     license_type: l.license_type ?? "",
     license_category: l.license_category ?? "",
     calculated_fee: l.calculated_fee != null ? String(l.calculated_fee) : "",
+    is_free: l.is_free ?? false,
+    amount_paid: l.amount_paid != null ? String(l.amount_paid) : "0",
     license_area: l.license_area ?? [],
     created_at: toIso(l.created_at),
     updated_at: toIso(l.updated_at),
@@ -400,12 +406,13 @@ const Page = async ({ params }: Props) => {
     viewerHasSignature = !!viewer?.url;
   }
 
-  const [certificateAssets, workflow, inspections, renewals, activity] =
+  const [certificateAssets, workflow, inspections, renewals, payments, activity] =
     await Promise.all([
       getCertificateAssets(),
       getLicenseWorkflowByLicenseId(id, license.status ?? "PENDING"),
       listInspectionReports(id),
       listRenewals(id),
+      listLicensePayments(id),
       listActivityForEntity("license", id),
     ]);
 
@@ -436,6 +443,7 @@ const Page = async ({ params }: Props) => {
       viewerHasSignature={viewerHasSignature}
       inspections={inspections}
       renewals={renewals}
+      payments={payments}
       activity={activity}
     />
   );

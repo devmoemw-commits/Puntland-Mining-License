@@ -263,6 +263,10 @@ export const licenses = pgTable("licenses", {
 
   // 👉 Pricing: chosen per-license at creation. When true, this license is Free (fee = 0).
   is_free: boolean("is_free").default(false).notNull(),
+  /** Running total collected so far (sum of license_payments). Drives Partially Paid / Paid. */
+  amount_paid: decimal("amount_paid", { precision: 10, scale: 2 })
+    .default("0")
+    .notNull(),
 
   // 👉 STEP 5 - Signature true/false
   signature: boolean("signature").default(false),
@@ -476,6 +480,23 @@ export const notifications = pgTable("notifications", {
   /** Dedupe key so the same alert isn't recreated repeatedly. */
   dedupeKey: varchar("dedupe_key", { length: 255 }),
   readAt: timestamp("read_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+// 👉 License Payments (append-only: each collection is one row, supports instalments)
+export const licensePayments = pgTable("license_payments", {
+  id: uuid("id").primaryKey().defaultRandom().notNull(),
+  licenseId: uuid("license_id")
+    .notNull()
+    .references(() => licenses.id, { onDelete: "cascade" }),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  paidAt: timestamp("paid_at", { withTimezone: true }).defaultNow().notNull(),
+  receiptNumber: varchar("receipt_number", { length: 255 }),
+  note: text("note"),
+  createdByUserId: uuid("created_by_user_id").references(() => users.id, {
+    onDelete: "set null",
+  }),
+  createdByName: text("created_by_name"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
