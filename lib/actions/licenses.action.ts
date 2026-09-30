@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { db } from "@/database/drizzle";
 import {
   approvalWorkflows,
+  licenseCategories,
   licenses,
   licenseWorkflowInstances,
   licenseWorkflowTransitions,
@@ -30,6 +31,35 @@ import { parseWorkflowDefinition } from "@/lib/approval-workflow";
 import { logActivity } from "@/lib/activity-log";
 
 const LICENSE_MODULE = "LICENSE";
+
+/**
+ * The fee is owned by the licence category (per licence type), not by the client.
+ * Resolving it server-side keeps "Paid / Partially Paid" anchored to the real
+ * charge, and stops a form post from silently zeroing a chargeable licence.
+ * Returns null when the category cannot be resolved (leave the stored fee alone).
+ */
+async function resolveCategoryFee(
+  categoryName: string | null | undefined,
+  licenseType: string | null | undefined,
+  isFree: boolean,
+): Promise<string | null> {
+  if (isFree) return "0";
+  if (!categoryName) return null;
+
+  const [category] = await db
+    .select({
+      newFee: licenseCategories.new_license_fee,
+      renewalFee: licenseCategories.renewal_fee,
+    })
+    .from(licenseCategories)
+    .where(eq(licenseCategories.name, categoryName))
+    .limit(1);
+  if (!category) return null;
+
+  return String(
+    licenseType === "Renewal" ? category.renewalFee : category.newFee,
+  );
+}
 
 async function getActiveLicenseWorkflow() {
   const [workflow] = await db
@@ -177,8 +207,11 @@ export const RegisterLicense = actionClient.schema(licensesSchema).action(
       license_type: license_type,
       license_category: license_category,
       license_area: license_area,
-      // Free licenses carry no fee.
-      calculated_fee: is_free ? "0" : license_fee,
+      // Fee comes from the licence category (falling back to the posted value
+      // only if the category cannot be resolved).
+      calculated_fee:
+        (await resolveCategoryFee(license_category, license_type, !!is_free)) ??
+        (is_free ? "0" : license_fee),
       is_free: is_free ?? false,
 
       // Drafts are saved without entering the approval workflow.
@@ -238,6 +271,29 @@ export const UpdateLicense = actionClient
       // Only proceed if there are fields to update
       if (Object.keys(filteredUpdateData).length === 0) {
         return { error: "No fields to update" };
+      }
+
+      // Re-derive the fee from the licence category on every save. An edit must
+      // never be able to set an arbitrary (or zero) amount on a chargeable licence —
+      // the category is the single source of truth for what is owed, and that is what
+      // Paid / Partially Paid is measured against.
+      const [existingLicense] = await db
+        .select({
+          category: licenses.license_category,
+          type: licenses.license_type,
+          isFree: licenses.is_free,
+        })
+        .from(licenses)
+        .where(eq(licenses.id, id))
+        .limit(1);
+
+      const categoryFee = await resolveCategoryFee(
+        parsedInput.license_category ?? existingLicense?.category ?? null,
+        parsedInput.license_type ?? existingLicense?.type ?? null,
+        parsedInput.is_free ?? existingLicense?.isFree ?? false,
+      );
+      if (categoryFee !== null) {
+        filteredUpdateData.calculated_fee = categoryFee;
       }
 
       // Update the license
