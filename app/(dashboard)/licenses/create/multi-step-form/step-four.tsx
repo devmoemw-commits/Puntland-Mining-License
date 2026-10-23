@@ -8,9 +8,21 @@ import { Button } from "@/components/ui/button"
 import { SearchableSelect } from "@/components/ui/searchable-select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
 
 import { z } from "zod"
 import AreaMultiSelect, { areas } from "@/components/area-multi-select"
+import { cn } from "@/lib/utils"
+import {
+  PAYMENT_CHOICES,
+  PAYMENT_STATUS_CLASSES,
+  PAYMENT_STATUS_LABELS,
+  formatMoney,
+  getBalance,
+  getPaymentStatus,
+  planPaymentChoice,
+  type PaymentChoice,
+} from "@/lib/payment-status"
 
 // Define the schema directly in this file using your schema format
 const licenseInfoSchema = z.object({
@@ -18,8 +30,11 @@ const licenseInfoSchema = z.object({
   license_category: z.string().min(1, "License category is required"),
   license_fee: z.string().min(1, "License fee is required"),
   license_area: z.array(z.string()).min(1, "License area is required"),
-  // Pricing choice for this license (Paid default; Free = no fee).
+  // Payment outcome at application: Paid Full / Discount / Paid Partially / Free.
   is_free: z.boolean().optional(),
+  payment_type: z.enum(["FULL", "DISCOUNT", "PARTIAL", "FREE"]).optional(),
+  discount_amount: z.string().optional(),
+  partial_amount: z.string().optional(),
 })
 
 type LicenseCategory = {
@@ -44,6 +59,9 @@ const StepFour = ({ onNext, onBack, formData }: StepFourProps) => {
       license_fee: formData.license_fee || "",
       license_area: formData.license_area || [],
       is_free: formData.is_free ?? false,
+      payment_type: formData.payment_type ?? (formData.is_free ? "FREE" : "FULL"),
+      discount_amount: formData.discount_amount ?? "",
+      partial_amount: formData.partial_amount ?? "",
     },
   })
 
@@ -57,7 +75,11 @@ const StepFour = ({ onNext, onBack, formData }: StepFourProps) => {
   const license_category = watch("license_category")
   const license_fee = watch("license_fee")
   const license_area = watch("license_area")
-  const is_free = watch("is_free")
+  const payment_type = (watch("payment_type") ?? "FULL") as PaymentChoice
+  const discount_amount = watch("discount_amount")
+  const partial_amount = watch("partial_amount")
+  const is_free = payment_type === "FREE"
+  const [paymentError, setPaymentError] = useState<string | null>(null)
 
   // License types
   const licenseTypes = ["New License", "Renewal"]
@@ -104,24 +126,74 @@ const StepFour = ({ onNext, onBack, formData }: StepFourProps) => {
     }
   }, [categoriesLoading, categories, license_category, setValue])
 
-  // Calculate fee based on selections. Free licenses always cost 0.
+  // The category decides the fee; Free licences are stored with a fee of 0.
+  const categoryFee =
+    license_type && license_category ? getFeeForSelection(license_type, license_category) : ""
+
   useEffect(() => {
     if (is_free) {
       if (license_fee !== "0") setValue("license_fee", "0", { shouldValidate: true })
       return
     }
-    if (license_type && license_category) {
-      const fee = getFeeForSelection(license_type, license_category)
-
-      // Only update if the fee has actually changed
-      if (fee && license_fee !== fee) {
-        setValue("license_fee", fee, { shouldValidate: true })
-      }
+    if (categoryFee && license_fee !== categoryFee) {
+      setValue("license_fee", categoryFee, { shouldValidate: true })
     }
-  }, [is_free, license_type, license_category, license_fee, setValue, getFeeForSelection])
+  }, [is_free, categoryFee, license_fee, setValue])
+
+  // Preview of what will be recorded, using the same rules as the server.
+  const plan = categoryFee
+    ? planPaymentChoice({
+        fee: categoryFee,
+        paid: 0,
+        choice: payment_type,
+        discountAmount: discount_amount,
+        partialAmount: partial_amount,
+      })
+    : null
+  const preview =
+    plan && plan.ok
+      ? {
+          discount: plan.discount,
+          collected: plan.record,
+          owed: plan.isFree ? 0 : getBalance(categoryFee, plan.record, plan.discount),
+          status: getPaymentStatus({
+            isFree: plan.isFree,
+            fee: categoryFee,
+            paid: plan.record,
+            discount: plan.discount,
+          }),
+        }
+      : null
+
+  const selectChoice = (choice: PaymentChoice) => {
+    setValue("payment_type", choice)
+    setValue("is_free", choice === "FREE")
+    setPaymentError(null)
+  }
 
   const onSubmit = (values: z.infer<typeof licenseInfoSchema>) => {
-    onNext(values)
+    if (categoryFee) {
+      const check = planPaymentChoice({
+        fee: categoryFee,
+        paid: 0,
+        choice: payment_type,
+        discountAmount: values.discount_amount,
+        partialAmount: values.partial_amount,
+      })
+      if (!check.ok) {
+        setPaymentError(check.error)
+        return
+      }
+    }
+    setPaymentError(null)
+    onNext({
+      ...values,
+      payment_type,
+      is_free: payment_type === "FREE",
+      license_fee: payment_type === "FREE" ? "0" : categoryFee || values.license_fee,
+      discount_amount: payment_type === "DISCOUNT" ? values.discount_amount : "",
+      partial_amount: payment_type === "PARTIAL" ? values.partial_amount : "",
+    })
   }
 
   return (
@@ -193,30 +265,6 @@ const StepFour = ({ onNext, onBack, formData }: StepFourProps) => {
                         emptyText="No category found."
                       />
                     </FormControl>
-                    {/* Pricing choice for THIS license (Paid default; Free = no fee) */}
-                    <div className="mt-2 flex flex-wrap items-center gap-4">
-                      <span className="text-sm font-medium">Pricing:</span>
-                      <label className="flex items-center gap-1.5 text-sm">
-                        <input
-                          type="radio"
-                          name="license_pricing"
-                          className="h-4 w-4"
-                          checked={!is_free}
-                          onChange={() => setValue("is_free", false, { shouldValidate: false })}
-                        />
-                        Paid
-                      </label>
-                      <label className="flex items-center gap-1.5 text-sm">
-                        <input
-                          type="radio"
-                          name="license_pricing"
-                          className="h-4 w-4"
-                          checked={!!is_free}
-                          onChange={() => setValue("is_free", true, { shouldValidate: false })}
-                        />
-                        Free (no payment)
-                      </label>
-                    </div>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -243,8 +291,80 @@ const StepFour = ({ onNext, onBack, formData }: StepFourProps) => {
             />
           </div>
 
+          <div>
+            <Label className="text-base font-medium mb-3 block">
+              3. Payment <span className="text-red-500">*</span>
+            </Label>
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+              {PAYMENT_CHOICES.map((choice) => (
+                <button
+                  key={choice.value}
+                  type="button"
+                  onClick={() => selectChoice(choice.value)}
+                  className={cn(
+                    "rounded-lg border p-3 text-left transition-colors",
+                    payment_type === choice.value
+                      ? "border-primary bg-primary/5 ring-1 ring-primary"
+                      : "hover:bg-muted/50",
+                  )}
+                >
+                  <div className="text-sm font-semibold">{choice.label}</div>
+                  <div className="mt-0.5 text-xs text-muted-foreground">{choice.hint}</div>
+                </button>
+              ))}
+            </div>
+
+            {payment_type === "DISCOUNT" && (
+              <div className="mt-4 max-w-xs space-y-1.5">
+                <Label htmlFor="discount_amount">Discount amount (waived)</Label>
+                <Input
+                  id="discount_amount"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="e.g. 1000"
+                  value={discount_amount ?? ""}
+                  onChange={(e) => {
+                    setValue("discount_amount", e.target.value)
+                    setPaymentError(null)
+                  }}
+                />
+                {categoryFee && (
+                  <p className="text-xs text-muted-foreground">
+                    Fee is ${formatMoney(categoryFee)}. The rest is collected now.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {payment_type === "PARTIAL" && (
+              <div className="mt-4 max-w-xs space-y-1.5">
+                <Label htmlFor="partial_amount">Amount paid now</Label>
+                <Input
+                  id="partial_amount"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="e.g. 3000"
+                  value={partial_amount ?? ""}
+                  onChange={(e) => {
+                    setValue("partial_amount", e.target.value)
+                    setPaymentError(null)
+                  }}
+                />
+                {categoryFee && (
+                  <p className="text-xs text-muted-foreground">
+                    Fee is ${formatMoney(categoryFee)}. The remainder stays owed.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {paymentError && <p className="mt-2 text-sm font-medium text-destructive">{paymentError}</p>}
+          </div>
+
           <div className="pt-4">
-            <Label className="text-base font-medium">3. Fees Calculation</Label>
+            <Label className="text-base font-medium">4. Fees Calculation</Label>
             <Card className="mt-2">
               <CardHeader className="pb-2">
                 <CardTitle className="text-lg">Fee Summary</CardTitle>
@@ -265,17 +385,46 @@ const StepFour = ({ onNext, onBack, formData }: StepFourProps) => {
                       {license_area.length > 0 ? license_area.join(", ") : "Not selected"}
                     </span>
                   </div>
-                  <div className="border-t pt-2 mt-2">
-                    <div className="flex justify-between text-lg font-bold">
-                      <span>Total Fee:</span>
+                  <div className="border-t pt-2 mt-2 space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600 dark:text-gray-200">Licence Fee:</span>
                       {is_free ? (
-                        <span className="text-emerald-600">Free</span>
+                        <span className="font-medium text-emerald-600">Free</span>
                       ) : (
-                        <span className="text-blue-600">
-                          ${license_fee ? Number.parseInt(license_fee).toLocaleString() : "0"}
-                        </span>
+                        <span className="font-medium">${categoryFee ? formatMoney(categoryFee) : "0"}</span>
                       )}
                     </div>
+                    {preview && preview.discount > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600 dark:text-gray-200">Discount:</span>
+                        <span className="font-medium text-violet-600">- ${formatMoney(preview.discount)}</span>
+                      </div>
+                    )}
+                    {preview && !is_free && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600 dark:text-gray-200">Collected now:</span>
+                        <span className="font-medium">${formatMoney(preview.collected)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-lg font-bold">
+                      <span>Still owed:</span>
+                      <span className={preview && preview.owed > 0 ? "text-amber-600" : "text-blue-600"}>
+                        ${formatMoney(preview?.owed ?? 0)}
+                      </span>
+                    </div>
+                    {preview && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600 dark:text-gray-200">Payment status:</span>
+                        <span
+                          className={cn(
+                            "rounded-md px-2 py-0.5 text-xs font-semibold",
+                            PAYMENT_STATUS_CLASSES[preview.status],
+                          )}
+                        >
+                          {PAYMENT_STATUS_LABELS[preview.status]}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </CardContent>

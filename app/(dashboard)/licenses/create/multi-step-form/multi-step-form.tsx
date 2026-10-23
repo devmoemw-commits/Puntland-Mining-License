@@ -103,7 +103,13 @@ export default function MultiStepForm() {
       // Dismiss any existing toasts (including the loading toast)
       toast.dismiss()
 
-      if (!data.data) {
+      if (data.data && "error" in data.data && data.data.error) {
+        // Server rejected the application (e.g. invalid payment amounts)
+        toast.error("Submission Failed", {
+          description: String(data.data.error),
+          duration: 6000,
+        })
+      } else if (!data.data) {
         // No data means something went wrong
         toast.error("Submission Failed", {
           description: "There was a problem creating your license. Please try again.",

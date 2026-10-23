@@ -109,6 +109,8 @@ export interface License {
   calculated_fee: string
   is_free?: boolean
   amount_paid?: string
+  /** Part of the fee waived (Discount); the rest is collected. */
+  discount_amount?: string
   license_area: string[]
   created_at: string
   updated_at: string

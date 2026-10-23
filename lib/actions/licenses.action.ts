@@ -29,6 +29,54 @@ import { Permissions } from "@/lib/permissions";
 import { dataDeletionBlockedResult } from "@/lib/data-retention";
 import { parseWorkflowDefinition } from "@/lib/approval-workflow";
 import { logActivity } from "@/lib/activity-log";
+import {
+  PAYMENT_STATUS_LABELS,
+  formatMoney,
+  getBalance,
+  getPaymentStatus,
+  planPaymentChoice,
+  type PaymentPlan,
+} from "@/lib/payment-status";
+import { applyPaymentPlan } from "@/lib/license-payments";
+
+/** One readable activity line describing how a licence's fee was settled. */
+async function logPaymentOutcome(params: {
+  licenseId: string;
+  ref?: string | null;
+  plan: Extract<PaymentPlan, { ok: true }>;
+  fee: string | number;
+  totalPaid: string;
+  context: string;
+}) {
+  const { plan } = params;
+  const storedFee = plan.isFree ? 0 : Number(params.fee);
+  const status = getPaymentStatus({
+    isFree: plan.isFree,
+    fee: storedFee,
+    paid: params.totalPaid,
+    discount: plan.discount,
+  });
+  const owed = getBalance(storedFee, params.totalPaid, plan.discount);
+  const parts = [PAYMENT_STATUS_LABELS[status]];
+  if (plan.discount > 0) parts.push(`${formatMoney(plan.discount)} waived`);
+  if (plan.record > 0) parts.push(`${formatMoney(plan.record)} collected`);
+  if (owed > 0) parts.push(`${formatMoney(owed)} still owed`);
+
+  await logActivity({
+    action: "license.payment",
+    entityType: "license",
+    entityId: params.licenseId,
+    entityLabel: params.ref ?? null,
+    summary: `${params.context}: ${parts.join(", ")}`,
+    metadata: {
+      status,
+      discount: plan.discount,
+      collectedNow: plan.record,
+      totalPaid: Number(params.totalPaid),
+      owed,
+    },
+  });
+}
 
 const LICENSE_MODULE = "LICENSE";
 
@@ -149,6 +197,9 @@ export const RegisterLicense = actionClient.schema(licensesSchema).action(
       license_fee,
       license_area,
       is_free,
+      payment_type,
+      discount_amount,
+      partial_amount,
       is_draft,
     },
   }) => {
@@ -176,6 +227,24 @@ export const RegisterLicense = actionClient.schema(licensesSchema).action(
 
       return `${prefix}-${year}${month}-${randomPart}`;
     }
+
+    // The fee owed comes from the licence category; the payment choice decides how it
+    // is settled. Validate BEFORE inserting so a bad amount never leaves a half-made licence.
+    const categoryCharge =
+      (await resolveCategoryFee(license_category, license_type, false)) ?? license_fee;
+    const paymentPlan = payment_type
+      ? planPaymentChoice({
+          fee: categoryCharge,
+          paid: 0,
+          choice: payment_type,
+          discountAmount: discount_amount,
+          partialAmount: partial_amount,
+        })
+      : null;
+    if (paymentPlan && !paymentPlan.ok) {
+      return { error: paymentPlan.error };
+    }
+    const effectiveIsFree = paymentPlan?.ok ? paymentPlan.isFree : !!is_free;
 
     const refId = generateLicenseRefId();
     const [createdLicense] = await db.insert(licenses).values({
@@ -207,18 +276,33 @@ export const RegisterLicense = actionClient.schema(licensesSchema).action(
       license_type: license_type,
       license_category: license_category,
       license_area: license_area,
-      // Fee comes from the licence category (falling back to the posted value
-      // only if the category cannot be resolved).
-      calculated_fee:
-        (await resolveCategoryFee(license_category, license_type, !!is_free)) ??
-        (is_free ? "0" : license_fee),
-      is_free: is_free ?? false,
+      // Fee comes from the licence category (0 when Free).
+      calculated_fee: effectiveIsFree ? "0" : categoryCharge,
+      is_free: effectiveIsFree,
 
       // Drafts are saved without entering the approval workflow.
       status: is_draft ? "DRAFT" : "PENDING",
     }).returning({ id: licenses.id });
 
     if (createdLicense?.id) {
+      // Settle the fee per the chosen outcome (records the money collected now).
+      if (paymentPlan?.ok && session.user.id) {
+        const totalPaid = await applyPaymentPlan({
+          licenseId: createdLicense.id,
+          plan: paymentPlan,
+          actor: { id: session.user.id, name: session.user.name ?? null },
+          note: "Recorded at application",
+        });
+        await logPaymentOutcome({
+          licenseId: createdLicense.id,
+          ref: refId,
+          plan: paymentPlan,
+          fee: categoryCharge,
+          totalPaid,
+          context: "Payment at application",
+        });
+      }
+
       const activeWorkflow = await getActiveLicenseWorkflow();
       if (activeWorkflow && !is_draft) {
         try {
@@ -265,7 +349,7 @@ export const UpdateLicense = actionClient
 
       // Remove undefined values
       const filteredUpdateData = Object.fromEntries(
-        Object.entries(updateData).filter(([value]) => value !== undefined)
+        Object.entries(updateData).filter(([, value]) => value !== undefined)
       );
 
       // Only proceed if there are fields to update
@@ -273,24 +357,63 @@ export const UpdateLicense = actionClient
         return { error: "No fields to update" };
       }
 
+      // Payment fields are not plain columns. They are applied through the payment
+      // plan below, which stores the discount and records any new money.
+      const { payment_type, discount_amount, partial_amount } = parsedInput;
+      delete filteredUpdateData.payment_type;
+      delete filteredUpdateData.discount_amount;
+      delete filteredUpdateData.partial_amount;
+
       // Re-derive the fee from the licence category on every save. An edit must
       // never be able to set an arbitrary (or zero) amount on a chargeable licence —
       // the category is the single source of truth for what is owed, and that is what
       // Paid / Partially Paid is measured against.
       const [existingLicense] = await db
         .select({
+          ref: licenses.license_ref_id,
           category: licenses.license_category,
           type: licenses.license_type,
           isFree: licenses.is_free,
+          paid: licenses.amount_paid,
         })
         .from(licenses)
         .where(eq(licenses.id, id))
         .limit(1);
 
+      const effectiveCategory =
+        parsedInput.license_category ?? existingLicense?.category ?? null;
+      const effectiveType =
+        parsedInput.license_type ?? existingLicense?.type ?? null;
+
+      // Only touch payments when the payment section was actually changed.
+      let paymentPlan: PaymentPlan | null = null;
+      let categoryCharge: string | null = null;
+      if (payment_type) {
+        categoryCharge = await resolveCategoryFee(effectiveCategory, effectiveType, false);
+        if (categoryCharge === null) {
+          return { error: "Cannot determine the fee for this licence category." };
+        }
+        paymentPlan = planPaymentChoice({
+          fee: categoryCharge,
+          paid: existingLicense?.paid ?? 0,
+          choice: payment_type,
+          discountAmount: discount_amount,
+          partialAmount: partial_amount,
+        });
+        if (!paymentPlan.ok) {
+          return { error: paymentPlan.error };
+        }
+        filteredUpdateData.is_free = paymentPlan.isFree;
+      }
+
+      const effectiveIsFree = paymentPlan?.ok
+        ? paymentPlan.isFree
+        : (parsedInput.is_free ?? existingLicense?.isFree ?? false);
+
       const categoryFee = await resolveCategoryFee(
-        parsedInput.license_category ?? existingLicense?.category ?? null,
-        parsedInput.license_type ?? existingLicense?.type ?? null,
-        parsedInput.is_free ?? existingLicense?.isFree ?? false,
+        effectiveCategory,
+        effectiveType,
+        effectiveIsFree,
       );
       if (categoryFee !== null) {
         filteredUpdateData.calculated_fee = categoryFee;
@@ -312,6 +435,28 @@ export const UpdateLicense = actionClient
         summary: `Updated license details (${Object.keys(filteredUpdateData).join(", ")})`,
       });
 
+      if (paymentPlan?.ok && categoryCharge !== null) {
+        const session = await auth();
+        if (session?.user?.id) {
+          const totalPaid = await applyPaymentPlan({
+            licenseId: id,
+            plan: paymentPlan,
+            actor: { id: session.user.id, name: session.user.name ?? null },
+            note: "Recorded on licence edit",
+          });
+          await logPaymentOutcome({
+            licenseId: id,
+            ref: existingLicense?.ref,
+            plan: paymentPlan,
+            fee: categoryCharge,
+            totalPaid,
+            context: "Payment updated",
+          });
+        }
+      }
+
+      revalidatePath(`/licenses/${id}`);
+      revalidatePath("/licenses");
       return { success: "License updated successfully" };
     } catch (error) {
       console.error("Error updating license:", error);

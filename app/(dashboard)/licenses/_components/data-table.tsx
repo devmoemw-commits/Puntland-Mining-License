@@ -159,10 +159,11 @@ export function DataTable<TData, TValue>({ columns, data }: DataTableProps<TData
                 column={table.getColumn("payment")}
                 title="Payment"
                 options={[
+                  { label: "Paid Full", value: "Paid Full" },
+                  { label: "Discount", value: "Discount" },
+                  { label: "Paid Partially", value: "Paid Partially" },
                   { label: "Free", value: "Free" },
-                  { label: "Unpaid", value: "Unpaid" },
-                  { label: "Partially Paid", value: "Partially Paid" },
-                  { label: "Paid", value: "Paid" },
+                  { label: "Unpaid (legacy)", value: "Unpaid" },
                 ]}
               />
             )}

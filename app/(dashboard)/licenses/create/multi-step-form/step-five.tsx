@@ -23,6 +23,7 @@ import { Separator } from "@/components/ui/separator"
 
 import type { z } from "zod"
 import type { licensesSchema } from "@/types/license-schema"
+import { PAYMENT_CHOICES, formatMoney, getBalance } from "@/lib/payment-status"
 
 interface StepFiveProps {
   onBack: () => void
@@ -249,8 +250,24 @@ const StepFive = ({ onBack, handleSubmit, formData, isSubmitting }: StepFiveProp
                         {formData.is_free
                           ? "Free"
                           : formData.license_fee
-                            ? `$${formData.license_fee}`
+                            ? `$${formatMoney(formData.license_fee)}`
                             : "Not provided"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <DollarSign className="h-5 w-5 text-gray-500 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Payment</p>
+                      <p className="font-medium">
+                        {PAYMENT_CHOICES.find((c) => c.value === (formData.payment_type ?? (formData.is_free ? "FREE" : "FULL")))?.label}
+                        {formData.payment_type === "DISCOUNT" && formData.discount_amount
+                          ? ` — $${formatMoney(formData.discount_amount)} waived, $${formatMoney(getBalance(formData.license_fee, 0, formData.discount_amount))} collected`
+                          : ""}
+                        {formData.payment_type === "PARTIAL" && formData.partial_amount
+                          ? ` — $${formatMoney(formData.partial_amount)} collected, $${formatMoney(getBalance(formData.license_fee, formData.partial_amount))} still owed`
+                          : ""}
                       </p>
                     </div>
                   </div>

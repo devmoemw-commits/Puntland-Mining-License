@@ -24,6 +24,18 @@ import ExperienceProfile from "./fileupload/experience-profile"
 import RiskManagementPlan from "./fileupload/risk-management-plan"
 import BankStatement from "./fileupload/bank-statement"
 import AreaMultiSelect, { areas } from "./area-multi-select"
+import { cn } from "@/lib/utils"
+import {
+  PAYMENT_CHOICES,
+  PAYMENT_STATUS_CLASSES,
+  PAYMENT_STATUS_LABELS,
+  formatMoney,
+  getBalance,
+  getPaymentStatus,
+  planPaymentChoice,
+  statusToChoice,
+  type PaymentChoice,
+} from "@/lib/payment-status"
 
 type RegionDistrict = {
   regionId: string
@@ -59,6 +71,8 @@ export type License = {
   license_category: string
   calculated_fee: string
   is_free?: boolean
+  amount_paid?: string | null
+  discount_amount?: string | null
   license_area: string[] | string // Support both for backward compatibility
   created_at: string
   updated_at: string
@@ -97,6 +111,9 @@ const formSchema = z.object({
   license_area: z.array(z.string()).min(1, "License area is required"),
   calculated_fee: z.string().min(1, "Calculated fee is required"),
   is_free: z.boolean().optional(),
+  payment_type: z.enum(["FULL", "DISCOUNT", "PARTIAL", "FREE"]).optional(),
+  discount_amount: z.string().optional(),
+  partial_amount: z.string().optional(),
 })
 
 interface LicenseUpdateFormProps {
@@ -130,6 +147,17 @@ export function LicenseUpdateForm({ license, onSuccess }: LicenseUpdateFormProps
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isDataLoaded, setIsDataLoaded] = useState(false)
 
+  // Current payment state of the licence (before any edit)
+  const currentPaymentStatus = getPaymentStatus({
+    isFree: license.is_free,
+    fee: license.calculated_fee,
+    paid: license.amount_paid,
+    discount: license.discount_amount,
+  })
+  // Payment fields are only sent when the person actually changes the payment section.
+  const [paymentTouched, setPaymentTouched] = useState(false)
+  const [paymentError, setPaymentError] = useState<string | null>(null)
+
   // Initialize the form with the license data
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -157,6 +185,9 @@ export function LicenseUpdateForm({ license, onSuccess }: LicenseUpdateFormProps
           : [],
       calculated_fee: license.calculated_fee,
       is_free: license.is_free ?? false,
+      payment_type: statusToChoice(currentPaymentStatus) ?? undefined,
+      discount_amount: Number(license.discount_amount ?? 0) > 0 ? String(license.discount_amount) : "",
+      partial_amount: "",
     },
   })
 
@@ -274,7 +305,10 @@ export function LicenseUpdateForm({ license, onSuccess }: LicenseUpdateFormProps
   const license_category = form.watch("license_category")
 
   // Calculate fee based on the selected type + category (fees are stored on the category)
-  const is_free = form.watch("is_free")
+  const payment_type = form.watch("payment_type") as PaymentChoice | undefined
+  const discount_amount = form.watch("discount_amount")
+  const partial_amount = form.watch("partial_amount")
+  const is_free = paymentTouched ? payment_type === "FREE" : !!license.is_free
 
   const getFeeForSelection = useCallback(
     (type: string, categoryName: string): string => {
@@ -301,22 +335,75 @@ export function LicenseUpdateForm({ license, onSuccess }: LicenseUpdateFormProps
     }
   }, [is_free, license_type, license_category, form, getFeeForSelection])
 
+  const categoryFee =
+    license_type && license_category ? getFeeForSelection(license_type, license_category) : ""
+  const alreadyPaid = Number(license.amount_paid ?? 0)
+
+  // Preview of the result of the chosen payment option (same rules as the server)
+  const paymentPlan =
+    paymentTouched && payment_type && categoryFee
+      ? planPaymentChoice({
+          fee: categoryFee,
+          paid: alreadyPaid,
+          choice: payment_type,
+          discountAmount: discount_amount,
+          partialAmount: partial_amount,
+        })
+      : null
+  const paymentPreview =
+    paymentPlan && paymentPlan.ok
+      ? {
+          collected: alreadyPaid + paymentPlan.record,
+          record: paymentPlan.record,
+          discount: paymentPlan.discount,
+          owed: paymentPlan.isFree ? 0 : getBalance(categoryFee, alreadyPaid + paymentPlan.record, paymentPlan.discount),
+          status: getPaymentStatus({
+            isFree: paymentPlan.isFree,
+            fee: categoryFee,
+            paid: alreadyPaid + paymentPlan.record,
+            discount: paymentPlan.discount,
+          }),
+        }
+      : null
+
+  const selectPaymentChoice = (choice: PaymentChoice) => {
+    setPaymentTouched(true)
+    setPaymentError(null)
+    form.setValue("payment_type", choice)
+    form.setValue("is_free", choice === "FREE")
+  }
+
   // Handle form submission
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    if (paymentTouched && paymentPlan && !paymentPlan.ok) {
+      setPaymentError(paymentPlan.error)
+      return
+    }
     setIsSubmitting(true)
 
     try {
-      const formattedValues = {
-        ...values,
-      }
+      const { payment_type: chosen, discount_amount: discount, partial_amount: partial, ...rest } = values
+      const formattedValues = paymentTouched && chosen
+        ? {
+            ...rest,
+            is_free: chosen === "FREE",
+            payment_type: chosen,
+            discount_amount: chosen === "DISCOUNT" ? discount : undefined,
+            partial_amount: chosen === "PARTIAL" ? partial : undefined,
+          }
+        : { ...rest, is_free: !!license.is_free }
 
       console.log("Submitting form with values:", formattedValues)
 
       const result = await UpdateLicense(formattedValues)
       console.log("Update result:", result)
 
+      const failure = result?.data && "error" in result.data ? result.data.error : null
       if (result?.validationErrors) {
         toast.error("Validation error")
+      } else if (failure || result?.serverError) {
+        toast.error(failure || "Failed to update license")
+        if (failure) setPaymentError(failure)
       } else {
         toast.success("License updated successfully")
         if (onSuccess) {
@@ -699,30 +786,6 @@ export function LicenseUpdateForm({ license, onSuccess }: LicenseUpdateFormProps
                             emptyText="No category found."
                           />
                         </FormControl>
-                        {/* Pricing choice for THIS license (Paid default; Free = no fee) */}
-                        <div className="mt-2 flex flex-wrap items-center gap-4">
-                          <span className="text-sm font-medium">Pricing:</span>
-                          <label className="flex items-center gap-1.5 text-sm">
-                            <input
-                              type="radio"
-                              name="license_pricing_edit"
-                              className="h-4 w-4"
-                              checked={!is_free}
-                              onChange={() => form.setValue("is_free", false, { shouldValidate: false })}
-                            />
-                            Paid
-                          </label>
-                          <label className="flex items-center gap-1.5 text-sm">
-                            <input
-                              type="radio"
-                              name="license_pricing_edit"
-                              className="h-4 w-4"
-                              checked={!!is_free}
-                              onChange={() => form.setValue("is_free", true, { shouldValidate: false })}
-                            />
-                            Free (no payment)
-                          </label>
-                        </div>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -742,6 +805,114 @@ export function LicenseUpdateForm({ license, onSuccess }: LicenseUpdateFormProps
                     </FormItem>
                   )}
                 />
+
+                <div className="space-y-3 rounded-lg border p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="text-sm font-medium">Payment</div>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      Currently:
+                      <span
+                        className={cn(
+                          "rounded-md px-2 py-0.5 font-semibold",
+                          PAYMENT_STATUS_CLASSES[currentPaymentStatus],
+                        )}
+                      >
+                        {PAYMENT_STATUS_LABELS[currentPaymentStatus]}
+                      </span>
+                      {!license.is_free && (
+                        <span>
+                          collected ${formatMoney(alreadyPaid)} · owed $
+                          {formatMoney(getBalance(license.calculated_fee, license.amount_paid, license.discount_amount))}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {license.is_free && Number(categoryFee || 0) > 0 && (!paymentTouched || payment_type === "FREE") && (
+                    <p className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                      This licence is marked Free, but the {license_category} category charges $
+                      {formatMoney(categoryFee)}. If it should be charged, choose Paid Full, Discount or Paid
+                      Partially.
+                    </p>
+                  )}
+                  <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+                    {PAYMENT_CHOICES.map((choice) => (
+                      <button
+                        key={choice.value}
+                        type="button"
+                        onClick={() => selectPaymentChoice(choice.value)}
+                        className={cn(
+                          "rounded-lg border p-3 text-left transition-colors",
+                          payment_type === choice.value
+                            ? "border-primary bg-primary/5 ring-1 ring-primary"
+                            : "hover:bg-muted/50",
+                        )}
+                      >
+                        <div className="text-sm font-semibold">{choice.label}</div>
+                        <div className="mt-0.5 text-xs text-muted-foreground">{choice.hint}</div>
+                      </button>
+                    ))}
+                  </div>
+
+                  {paymentTouched && payment_type === "DISCOUNT" && (
+                    <div className="max-w-xs space-y-1.5">
+                      <FormLabel htmlFor="edit_discount_amount">Discount amount (waived)</FormLabel>
+                      <Input
+                        id="edit_discount_amount"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={discount_amount ?? ""}
+                        onChange={(e) => {
+                          form.setValue("discount_amount", e.target.value)
+                          setPaymentError(null)
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  {paymentTouched && payment_type === "PARTIAL" && (
+                    <div className="max-w-xs space-y-1.5">
+                      <FormLabel htmlFor="edit_partial_amount">Amount collected now</FormLabel>
+                      <Input
+                        id="edit_partial_amount"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={partial_amount ?? ""}
+                        onChange={(e) => {
+                          form.setValue("partial_amount", e.target.value)
+                          setPaymentError(null)
+                        }}
+                      />
+                      {alreadyPaid > 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          Added to the ${formatMoney(alreadyPaid)} already collected.
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {paymentPreview && (
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                      <span>
+                        Result:{" "}
+                        <span
+                          className={cn(
+                            "rounded-md px-2 py-0.5 text-xs font-semibold",
+                            PAYMENT_STATUS_CLASSES[paymentPreview.status],
+                          )}
+                        >
+                          {PAYMENT_STATUS_LABELS[paymentPreview.status]}
+                        </span>
+                      </span>
+                      {paymentPreview.discount > 0 && <span>Waived ${formatMoney(paymentPreview.discount)}</span>}
+                      {paymentPreview.record > 0 && <span>Records ${formatMoney(paymentPreview.record)} now</span>}
+                      <span>Owed ${formatMoney(paymentPreview.owed)}</span>
+                    </div>
+                  )}
+
+                  {paymentError && <p className="text-sm font-medium text-destructive">{paymentError}</p>}
+                </div>
 
                 <FormField
                   control={form.control}
@@ -766,7 +937,11 @@ export function LicenseUpdateForm({ license, onSuccess }: LicenseUpdateFormProps
             </Tabs>
           </CardContent>
           <CardFooter className="flex justify-between">
-            <Button variant="outline" type="button" onClick={() => form.reset()}>
+            <Button variant="outline" type="button" onClick={() => {
+                form.reset()
+                setPaymentTouched(false)
+                setPaymentError(null)
+              }}>
               Reset
             </Button>
             <Button type="submit" disabled={isSubmitting}>

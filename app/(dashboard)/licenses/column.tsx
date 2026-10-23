@@ -57,6 +57,7 @@ export type License = {
   is_free?: boolean
   /** Running total collected so far; drives Partially Paid / Paid. */
   amount_paid?: string
+  discount_amount?: string
   license_area: string
   created_at: string
   updated_at: string
@@ -143,13 +144,14 @@ export const columns: ColumnDef<License>[] = [
   {
     id: "payment",
     header: "Payment",
-    // Derived from fee vs collected, so a part-payment reads "Partially Paid".
+    // Derived from fee, waived discount and collected amount.
     accessorFn: (row) =>
       PAYMENT_STATUS_LABELS[
         getPaymentStatus({
           isFree: row.is_free,
           fee: row.calculated_fee,
           paid: row.amount_paid,
+          discount: row.discount_amount,
         })
       ],
     cell: ({ row }) => {
@@ -157,6 +159,7 @@ export const columns: ColumnDef<License>[] = [
         isFree: row.original.is_free,
         fee: row.original.calculated_fee,
         paid: row.original.amount_paid,
+        discount: row.original.discount_amount,
       })
       return (
         <Badge className={PAYMENT_STATUS_CLASSES[status]}>
@@ -180,15 +183,20 @@ export const columns: ColumnDef<License>[] = [
         isFree: lic.is_free,
         fee: lic.calculated_fee,
         paid: lic.amount_paid,
+        discount: lic.discount_amount,
       })
       if (status === "FREE") {
         return <span className="font-medium text-emerald-600">Free</span>
       }
-      const balance = getBalance(lic.calculated_fee, lic.amount_paid)
+      const balance = getBalance(lic.calculated_fee, lic.amount_paid, lic.discount_amount)
       return (
         <div className="whitespace-nowrap">
           <div className="font-medium">{formatMoney(lic.calculated_fee)}</div>
-          {status !== "PAID" ? (
+          {status === "DISCOUNT" ? (
+            <div className="text-xs normal-case text-violet-600">
+              waived {formatMoney(lic.discount_amount)} · paid {formatMoney(lic.amount_paid)}
+            </div>
+          ) : status !== "PAID" ? (
             <div className="text-xs normal-case text-amber-600">
               paid {formatMoney(lic.amount_paid)} · due {formatMoney(balance)}
             </div>

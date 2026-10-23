@@ -267,6 +267,10 @@ export const licenses = pgTable("licenses", {
   amount_paid: decimal("amount_paid", { precision: 10, scale: 2 })
     .default("0")
     .notNull(),
+  /** Portion of the category fee that was waived (Discount). Not owed and not collected. */
+  discount_amount: decimal("discount_amount", { precision: 10, scale: 2 })
+    .default("0")
+    .notNull(),
 
   // 👉 STEP 5 - Signature true/false
   signature: boolean("signature").default(false),

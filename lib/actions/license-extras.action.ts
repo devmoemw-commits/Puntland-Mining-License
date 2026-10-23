@@ -163,6 +163,7 @@ export const RecordLicensePayment = actionClient
           fee: licenses.calculated_fee,
           paid: licenses.amount_paid,
           isFree: licenses.is_free,
+          discount: licenses.discount_amount,
         })
         .from(licenses)
         .where(eq(licenses.id, parsedInput.licenseId))
@@ -173,7 +174,8 @@ export const RecordLicensePayment = actionClient
         return { error: "This licence is Free — no payment is due." };
       }
 
-      const balance = getBalance(lic.fee, lic.paid);
+      // Owed = fee - waived discount - already collected.
+      const balance = getBalance(lic.fee, lic.paid, lic.discount);
       if (balance <= 0) {
         return { error: "This licence is already fully paid." };
       }
@@ -210,8 +212,9 @@ export const RecordLicensePayment = actionClient
         isFree: lic.isFree,
         fee: lic.fee,
         paid: newPaid,
+        discount: lic.discount,
       });
-      const remaining = getBalance(lic.fee, newPaid);
+      const remaining = getBalance(lic.fee, newPaid, lic.discount);
 
       await logActivity({
         action: "license.payment",

@@ -128,6 +128,7 @@ async function getLicenseById(id: string): Promise<License | null> {
     calculated_fee: l.calculated_fee != null ? String(l.calculated_fee) : "",
     is_free: l.is_free ?? false,
     amount_paid: l.amount_paid != null ? String(l.amount_paid) : "0",
+    discount_amount: l.discount_amount != null ? String(l.discount_amount) : "0",
     license_area: l.license_area ?? [],
     created_at: toIso(l.created_at),
     updated_at: toIso(l.updated_at),

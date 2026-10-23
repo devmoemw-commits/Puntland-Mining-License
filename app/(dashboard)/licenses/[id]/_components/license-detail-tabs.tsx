@@ -139,6 +139,7 @@ export function LicenseDetailTabs({
           isFree={Boolean(detailsProps.license.is_free)}
           fee={detailsProps.license.calculated_fee}
           paid={detailsProps.license.amount_paid}
+          discount={detailsProps.license.discount_amount}
           payments={payments}
           canRecord={canRecordPayment}
           onDone={() => router.refresh()}
@@ -464,6 +465,7 @@ function PaymentsPanel({
   isFree,
   fee,
   paid,
+  discount,
   payments,
   canRecord,
   onDone,
@@ -472,6 +474,7 @@ function PaymentsPanel({
   isFree: boolean;
   fee?: string;
   paid?: string;
+  discount?: string;
   payments: LicensePaymentRow[];
   canRecord: boolean;
   onDone: () => void;
@@ -485,8 +488,9 @@ function PaymentsPanel({
     note: "",
   });
 
-  const status = getPaymentStatus({ isFree, fee, paid });
-  const balance = getBalance(fee, paid);
+  const status = getPaymentStatus({ isFree, fee, paid, discount });
+  const balance = getBalance(fee, paid, discount);
+  const hasDiscount = !isFree && Number(discount ?? 0) > 0;
 
   const submit = async () => {
     if (!form.amount.trim() || Number(form.amount) <= 0) {
@@ -531,6 +535,11 @@ function PaymentsPanel({
           <p className="mt-1 text-lg font-semibold">
             {isFree ? "Free" : formatMoney(fee)}
           </p>
+          {hasDiscount && (
+            <p className="text-xs text-violet-600">
+              {formatMoney(discount)} waived (discount)
+            </p>
+          )}
         </div>
         <div className="rounded-lg border p-3">
           <p className="text-xs text-muted-foreground">Collected</p>

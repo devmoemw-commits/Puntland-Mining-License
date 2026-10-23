@@ -18,6 +18,9 @@ export const workflowStatusValues = ["PENDING", "REVIEW", "APPROVED", "REJECTED"
 // Target statuses for admin-only overrides (suspend / cancel / reinstate).
 export const adminStatusValues = ["SUSPENDED", "CANCELLED", "APPROVED"] as const
 
+// The only four payment outcomes a licence application can have.
+export const paymentChoiceValues = ["FULL", "DISCOUNT", "PARTIAL", "FREE"] as const
+
 // Main license schema for registration
 export const licensesSchema = z.object({
   company_name: z.string().min(1, "Company name is required"),
@@ -50,6 +53,11 @@ export const licensesSchema = z.object({
 
   // 👉 Pricing chosen for this license: when true, it is Free (fee forced to 0)
   is_free: z.boolean().optional(),
+
+  // 👉 Payment outcome: Paid Full / Discount / Paid Partially / Free.
+  payment_type: z.enum(paymentChoiceValues).optional(),
+  discount_amount: z.string().optional(),
+  partial_amount: z.string().optional(),
 
   // 👉 When true, save as a Draft (not submitted into the approval workflow)
   is_draft: z.boolean().optional(),
@@ -137,6 +145,11 @@ export const updateLicenseSchema = z.object({
   calculated_fee: z.string().optional(),
   expire_date: z.string().optional(),
   is_free: z.boolean().optional(),
+
+  // Payment outcome (only sent when the payment section was changed).
+  payment_type: z.enum(paymentChoiceValues).optional(),
+  discount_amount: z.string().optional(),
+  partial_amount: z.string().optional(),
 
   // Status field (optional for updates)
   status: z.enum(licenseStatusValues).optional(),
